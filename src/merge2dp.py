@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import division
 # from pdb import set_trace as ST
+# from pprint import pprint as pp
 
 import sys
 import os
-from os.path import join as opjoin
+import os.path as op
 import h5py
 import sdc_extract
 import traceback as tb
@@ -51,7 +52,7 @@ def _get_exp_design(path,
                               else '-R'))
         ks.append(coords)
 
-        time = record.time__min_
+        time_ = record.time__min_
         ligand_name = record.ligand
         ligand_conc = record.concentration__ng_ml_
         primary_abs = (parse_antibody_string(record.primary_body1),
@@ -71,7 +72,7 @@ def _get_exp_design(path,
             abs_.append((wavelength,
                          _antibody(*(primary + (wavelength,)))))
 
-        treatment = _treatment(ligand_name, ligand_conc, time,
+        treatment = _treatment(ligand_name, ligand_conc, time_,
                                tuple(abs_))
 
         repl = replicate[treatment]
@@ -88,10 +89,6 @@ def _get_exp_design(path,
 
     assert len(ks) == len(set(ks))
     return dict(platemap)
-
-
-def get_exp_design(path):
-    return _get_exp_design(path)
 
 
 def gimme(root, wanted):
@@ -178,21 +175,20 @@ def _process_payload(payload, params):
     return dict((k[:-1], v) for k, v in locals().items() if k.endswith('_'))
                 
 
-
-def _flatten(tt):
-    ret = []
-    for t in tt:
-        if hasattr(t, '__iter__'):
-            ret += _flatten(t)
-        else:
-            ret.append(t)
-    return tuple(ret)
+# def _flatten(tt):
+#     ret = []
+#     for t in tt:
+#         if hasattr(t, '__iter__'):
+#             ret += _flatten(t)
+#         else:
+#             ret.append(t)
+#     return tuple(ret)
 
 
 def _path_to_csv(subpath, basename):
     if not basename.endswith('.csv'):
         basename += '.csv'
-    return opjoin(subpath, basename)
+    return op.join(subpath, basename)
 
 
 def _print_as_datapflex(cell_line_data, print_headers=False,
@@ -225,8 +221,9 @@ def _print_as_datapflex(cell_line_data, print_headers=False,
     for zone, zonedict in cell_line_data.items():
         for ligand, liganddict in zonedict.items():
             for conc, concdict in liganddict.items():
-                for time, payload in concdict.items():
-                    collect[zone][ligand][conc][time] = _process_payload(payload, locals())
+                for time_, payload in concdict.items():
+                    collect[zone][ligand][conc][time_] = \
+                        _process_payload(payload, locals())
 
 
     bytreatment = defaultdict(lambda: defaultdict(list))
@@ -262,8 +259,8 @@ def _print_as_datapflex(cell_line_data, print_headers=False,
 
             d = bytreatment[zone[:2]]
             for conc, concdict in liganddict.items():
-                for time, prerow in concdict.items():
-                    d[(ligand, conc, time)].append(prerow)
+                for time_, prerow in concdict.items():
+                    d[(ligand, conc, time_)].append(prerow)
 
     stat_suffixes = (u'', u'=stdev')
     nstats = len(stat_suffixes)
@@ -287,7 +284,6 @@ def _print_as_datapflex(cell_line_data, print_headers=False,
                       'cells_per_field_iqr',
                       u'', u''])
 
-    from pprint import pprint as pp
     count = 0
 
     batches = dict()
@@ -382,16 +378,6 @@ def _print_as_datapflex(cell_line_data, print_headers=False,
 
 
 def main(argv=sys.argv):
-    try:
-        return _main(argv)
-    except SystemExit:
-        pass
-    except:
-        tb.print_exc()
-    return 1
-
-
-def _main(argv=sys.argv):
     global READOUTS
     READOUTS = dict()
     global HEADERS
@@ -402,7 +388,7 @@ def _main(argv=sys.argv):
     OUTH = sys.stdout
 
     root = argv[1]
-    platemap = get_exp_design(argv[2])
+    platemap = _get_exp_design(argv[2])
     try:
         outpath = argv[3]
     except IndexError:
@@ -422,10 +408,10 @@ def _main(argv=sys.argv):
                              for s in wanted_wavelengths])
     
     last_cell_line = None
+    print_headers = True
     cell_line_data = headers = None
     done = False
 
-    count = 0
     def wanted(bn, path, isdir):
         return isdir and is_valid_rc(bn)
 
@@ -439,12 +425,15 @@ def _main(argv=sys.argv):
 
         if well_path:
             cell_line, plate, rc = (well_path.split('/'))[-3:]
+            treatment, info = platemap[plate][rc]
+            coords = info.coords
+            r, c = rc[0], rc[1:]
         else:
             done = True
 
         if done or cell_line != last_cell_line:
             _print_as_datapflex(cell_line_data,
-                                (last_cell_line is None),
+                                print_headers,
                                 wl2wl, wanted_wavelengths,
                                 wanted_features,
                                 outpath=outpath,
@@ -452,24 +441,25 @@ def _main(argv=sys.argv):
             if done:
                 break
             last_cell_line = cell_line
+            print_headers = False
             cell_line_data = defaultdict(lambda:
                                defaultdict(lambda:
                                  defaultdict(lambda:
                                    defaultdict(list))))
 
-        r, c = rc[0], rc[1:]
         fields_used = []
         data = []
-        for sdc in filter(lambda x: x.endswith('.sdc'),
-                          sorted(os.listdir(well_path))):
+        for sdc in sorted(os.listdir(well_path)):
+            if not sdc.endswith('.sdc'):
+                continue
 
-            hdf = opjoin(well_path, sdc, 'Data.h5')
+            hdf = op.join(well_path, sdc, 'Data.h5')
             try:
                 with h5py.File(hdf, 'r') as h5:
                     wells = list(sdc_extract.iterwells(h5))
                     if not len(wells):
+                        # TODO: log warning
                         continue
-                    #assert len(wells) == 1, str((hdf, len(wells)))
                     flds = list(sdc_extract.iterfields(wells[0][1]))
                     assert len(flds) == 1, str((hdf, len(flds)))
                     data.append(sdc_extract.field_feature_values(flds[0],
@@ -484,44 +474,19 @@ def _main(argv=sys.argv):
                 except:
                     pass
 
-        treatment, info = platemap[plate][rc]
-
-#         # XXX
-#         if treatment.ligand_name != 'CTRL':
-#             continue
-#         # XXX
-
-        coords = info.coords
         info = info._replace(coords=tuple([coords + (fn,)
                                            for fn in fields_used]))
 
         zone = info.zone
         ligand = treatment.ligand_name
         conc = treatment.ligand_concentration
-        time = treatment.time
-        cell_line_data[zone][ligand][conc][time].append(payload(unicode(cell_line),
-                                                                treatment, info, data))
-        count += 1
-
-#         if treatment.ligand_name != 'CTRL' and len(cell_line_data[treatment]) != 1:
-#             print ':'.join(_flatten(treatment)).encode('utf8')
-#             # XXX
-#             if len(cell_line_data[treatment]) == 6:
-#                 break
-#             # XXX
+        time_ = treatment.time
+        cell_line_data[zone][ligand][conc][time_].append(payload(unicode(cell_line),
+                                                                 treatment, info, data))
 
     return 0
 
 
-
 if __name__ == '__main__':
-    try:
-        main(sys.argv)
-    except SystemExit:
-        pass
-    except:
-        import traceback as tb
-        tb.print_exc()
-    exit(0)
-    #exit(main(sys.argv))
+    exit(main(sys.argv))
 
