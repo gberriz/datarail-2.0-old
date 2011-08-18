@@ -1,27 +1,20 @@
 # -*- coding: utf-8 -*-
 from __future__ import division
-
-from pdb import set_trace as ST
+# from pdb import set_trace as ST
 
 import sys
 import os
-from os.path import join as opjoin, exists
+from os.path import join as opjoin
 import h5py
 import sdc_extract
 import traceback as tb
-import re
 import numpy as np
-from functools import partial
 import csv
 import platform
 from copy import deepcopy
-from math import sqrt, floor
-
-from findbin import findbin
-#from find import find
+from math import sqrt
 from walk import find
 from icbp45_utils import read_exp_design, parse_antibody_string, is_valid_rc
-from noclobberdict import NoClobberDict
 from collections import namedtuple, defaultdict
 from quantiles import median_iqr
 
@@ -114,9 +107,6 @@ def gimme(root, wanted):
                 yield line.rstrip('\n')
 
 
-def print_record(rec):
-    print '\t'.join(_encode(rec))
-
 def _encode_entries(rec):
     assert hasattr(rec, '__iter__')
     return type(rec)(s.encode('utf-8') if isinstance(s, unicode) else s
@@ -160,7 +150,7 @@ def _process_payload(payload, params):
         ncells_ = mean_cells_per_field_ = lens[0]
         cells_per_field_stddev_ = u'(n/a)'
 
-    cells_per_field_median_, cells_per_field_iqr_ = _median_iqr(lens)
+    cells_per_field_median_, cells_per_field_iqr_ = median_iqr(lens)
     mean_and_std = data.mean(0, np.float64), data.std(0, np.float64)
 
     wanted_features = params['wanted_features']
@@ -245,10 +235,12 @@ def _print_as_datapflex(cell_line_data, print_headers=False,
         assert len(ctrl.keys()) == 1 and len(ctrl.values()[0].keys()) == 1
         ctrl_v = ctrl.values()[0].values()[0]
         ctrl_treatment = ctrl_v['treatment']
+        times = None
         for ligand, liganddict in ([kv for kv in zonedict.items()
                                     if kv[0] != 'CTRL'] +
                                    [(u'CTRL', zonedict[u'CTRL'])]):
             if ligand == 'CTRL':
+                assert times is not None
                 assert len(times) > 0
                 assert times.pop(0)
                 conc_0_dict = liganddict.values()[0]
@@ -260,7 +252,8 @@ def _print_as_datapflex(cell_line_data, print_headers=False,
 
                 times = sorted(liganddict.values()[0].keys(), key=int)
                 liganddict[u'0'] = conc_0_dict = dict()
-            
+
+            assert times is not None
             for t in times:
                 assert t not in conc_0_dict
                 conc_0_dict[t] = v = deepcopy(ctrl_v)
@@ -271,8 +264,6 @@ def _print_as_datapflex(cell_line_data, print_headers=False,
             for conc, concdict in liganddict.items():
                 for time, prerow in concdict.items():
                     d[(ligand, conc, time)].append(prerow)
-
-
 
     stat_suffixes = (u'', u'=stdev')
     nstats = len(stat_suffixes)
@@ -377,15 +368,6 @@ def _print_as_datapflex(cell_line_data, print_headers=False,
 
         batches[(cell_line, zoneclass)] = (row_dict)
 
-    # XXX
-#     import __main__
-#     __main__.collect = collect
-#     __main__.bytreatment = bytreatment
-#     __main__.mmts = mmts
-#     __main__.ctrl_vals = ctrl_vals
-#     exit(0)
-    # XXX
-
     for k, row_dict in batches.items():
         writer = csv.writer((outfh or
                              open(_path_to_csv(outpath, '_'.join(k)), 'w')),
@@ -399,21 +381,12 @@ def _print_as_datapflex(cell_line_data, print_headers=False,
                           for k in sorted(row_dict.keys())])
 
 
-    # XXX
-    global COUNT
-    COUNT += 1
-    if COUNT > 1:
-        exit(0)
-    # XXX
-
-
 def main(argv=sys.argv):
     try:
         return _main(argv)
     except SystemExit:
         pass
     except:
-        import traceback as tb
         tb.print_exc()
     return 1
 
@@ -480,9 +453,9 @@ def _main(argv=sys.argv):
                 break
             last_cell_line = cell_line
             cell_line_data = defaultdict(lambda:
-                                         defaultdict(lambda:
-                                                     defaultdict(lambda:
-                                                                 defaultdict(list))))
+                               defaultdict(lambda:
+                                 defaultdict(lambda:
+                                   defaultdict(list))))
 
         r, c = rc[0], rc[1:]
         fields_used = []
