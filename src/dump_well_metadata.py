@@ -18,6 +18,7 @@ from shell_utils import mkdirp, cmd_with_output
 from icbp45_utils import is_valid_rc, rc_path_iter, scrape_coords
 from noclobberdict import NoClobberDict
 from multidict import MultiDict
+from orderedset import OrderedSet
 
 from pdb import set_trace as ST
 
@@ -44,7 +45,7 @@ CONTROL = {
                               {u'z': [u'ligand_concentration=0',
                                       u'ligand_concentration=0*time=0',],
                                u'w': [u'time=0',],},],],
-  u'20100925_HCC1806/GF1': [[u'F*1,2,5,6;C*3,4', u'-*-',
+  u'20100925_HCC1806/GF1': [[u'F*1,2;C*10,9;F*5,6', u'-*-',
                               {u'z': [u'ligand_concentration=0',
                                       u'ligand_concentration=0*time=0',],
                                u'w': [u'time=0',],},],],
@@ -82,44 +83,43 @@ LAYER = {
       u'IL-2':      u'H*-',
     },
     u'20100925_HCC1806/GF1': {
-      u'VEGFF':   u'A*1,2,5,6;H*3,4',
-      u'EGF':     u'B*1,2,5,6;G*3,4',
-      u'EPR':     u'C*1,2,5,6;F*3,4',
-      u'BTC':     u'D*1,2,5,6;E*3,4',
-      u'HRG':     u'E*1,2,5,6;D*3,4',
-      u'CTRL-GF': u'F*1,2,5,6;C*3,4',
-      u'FGF1':    u'G*1,2,5,6;B*3,4',
-      u'FGF2':    u'H*1,2,5,6;A*3,4',
-      u'NGF':     u'A*7,8,11,12;H*9,10',
-      u'INS':     u'B*7,8,11,12;G*9,10',
-      u'IGF-1':   u'C*7,8,11,12;F*9,10',
-      u'IGF-2':   u'D*7,8,11,12;E*9,10',
-      u'SCF':     u'E*7,8,11,12;D*9,10',
-      u'HGF':     u'F*7,8,11,12;C*9,10',
-      u'PDGFBB':  u'G*7,8,11,12;B*9,10',
-      u'EFNA1':   u'H*7,8,11,12;A*9,10',
+      u'VEGFF':   u'A*1,2;H*10,9;A*5,6',
+      u'EGF':     u'B*1,2;G*10,9;B*5,6',
+      u'EPR':     u'C*1,2;F*10,9;C*5,6',
+      u'BTC':     u'D*1,2;E*10,9;D*5,6',
+      u'HRG':     u'E*1,2;D*10,9;E*5,6',
+      u'CTRL-GF': u'F*1,2;C*10,9;F*5,6',
+      u'FGF1':    u'G*1,2;B*10,9;G*5,6',
+      u'FGF2':    u'H*1,2;A*10,9;H*5,6',
+      u'NGF':     u'A*7,8;H*4,3;A*11,12',
+      u'INS':     u'B*7,8;G*4,3;B*11,12',
+      u'IGF-1':   u'C*7,8;F*4,3;C*11,12',
+      u'IGF-2':   u'D*7,8;E*4,3;D*11,12',
+      u'SCF':     u'E*7,8;D*4,3;E*11,12',
+      u'HGF':     u'F*7,8;C*4,3;F*11,12',
+      u'PDGFBB':  u'G*7,8;B*4,3;G*11,12',
+      u'EFNA1':   u'H*7,8;A*4,3;H*11,12',
     },
   },
   u'ligand_concentration': {
     u'GF': {
-      u'1':   u'-E,G,H*-11-2;F*7-11-2',
-      u'100': u'-E,G,H*2--2;F*8--2',
+      u'1':   u'-*--2\F*-6',
+      u'100': u'-*2--2\F*-6',
       u'0':   u'F*-6',
     },
     u'CK': {
-      u'1':   u'-C,E-*-11-2',
+      u'1':   u'-C,E-*--2',
       u'100': u'-C,E-*2--2',
       u'0':   u'D*-',
     },
     u'20100925_HCC1806/GF1': {
-      u'1':   u'-E,G,H*1,5,7,11;A,B,D-*4,10',
-      u'100': u'-E,G,H*2,6,8,12;A,B,D-*3,9',
-      u'0':   u'F*1,2,5-8,11,12;C*3,4,9,10',
+      u'1':   u'-*1,4,5\F*1,5;-*7,10,11\C*10',
+      u'100': u'-*2,3,6\F*2,6;-*8,9,12\C*9',
+      u'0':   u'F*1,2;C*10,9;F*5,6',
     },
   },
   u'time': {
     u'*': {
-      #u'0':  u'*',
       u'10': u'-*1,2,7,8',
       u'30': u'-*3,4,9,10',
       u'90': u'-*5,6,11,12',
@@ -152,14 +152,6 @@ LAYER = {
     u'20100925_HCC1806/GF1': { # same as for GF1
       u'1': {u'pAkt-m-488': u'-*-'},
     },
-#     u'CK-L': {
-#       u'1': {u'STAT1-r-647+NF-κB-m-488': u'-*-6'},
-#       u'2': {u'STAT1-r-488+NF-κB-m-647': u'-*-6'},
-#     },
-#     u'CK-R': {
-#       u'1': {u'STAT3-r-647+pErk-m-488': u'-*7-'},
-#       u'2': {u'STAT3-r-488+pErk-m-647': u'-*7-'},
-#     },
   },      
   u'685_antibody': {
     u'GF': {
@@ -185,14 +177,6 @@ LAYER = {
     u'20100925_HCC1806/GF1': { # same as for GF1
       u'1': {u'pErk-r-647': u'-*-'},
     },
-#     u'CK-L': {
-#       u'1': {u'STAT1-r-647+NF-κB-m-488': u'-*-6'},
-#       u'2': {u'STAT1-r-488+NF-κB-m-647': u'-*-6'},
-#     },
-#     u'CK-R': {
-#       u'1': {u'STAT3-r-647+pErk-m-488': u'-*7-'},
-#       u'2': {u'STAT3-r-488+pErk-m-647': u'-*7-'},
-#     },
   },
 }
 
@@ -413,7 +397,8 @@ class Plate(object):
         return Plate.to_index(i)//Plate.NROWS
     
 
-class Region(set):
+#class Region(set):
+class Region(OrderedSet):
     def __init__(self, wells):
         ws = map(Plate.to_index, wells)
         super(Region, self).__init__(ws)
@@ -468,8 +453,8 @@ class Region(set):
 
         rs, cs = [s.split(',') for s in spec.split('*')]
         return [w for w in [pl.to_index(r, c) for r, c in
-                            product(sorted(sum(map(_expand_rrange, rs), [])),
-                                    sorted(sum(map(_expand_crange, cs), [])))]
+                            product(sum(map(_expand_rrange, rs), []),
+                                    sum(map(_expand_crange, cs), []))]
                 if w not in exclude]
 
     @staticmethod
@@ -480,15 +465,38 @@ class Region(set):
 
     def to_rows(self):
         rows = [[] for _ in xrange(Plate.NROWS)]
-        for w in sorted(self):
+        for w in self:
             rows[Plate.getrownum(w)].append(w)
         return rows
         
     def to_cols(self):
         cols = [[] for _ in xrange(Plate.NCOLS)]
-        for w in sorted(self):
+        for w in self:
             cols[Plate.getcolnum(w)].append(w)
         return cols
+
+    def show(self, in_=u'X', out=u''):
+        width = max(map(len, (in_, out, '00')))
+        def ctr(s):
+            return unicode.center(unicode(s), width, u' ')
+        rn = Plate.from_rownum
+        cn = Plate.from_colnum
+        colnums = range(Plate.NCOLS)
+        rownums = range(Plate.NROWS)
+        hrow = u'|'.join([u' ' * len(rn(0))] +
+                         [ctr(cn(c)) for c in colnums] +
+                         [u''])
+
+        hdiv = u'-' * len(hrow)
+        for line in hdiv, hrow, hdiv:
+            print line
+        idx = Plate.to_index
+        for r, rname in enumerate(map(rn, rownums)):
+            print u'|'.join([rname] +
+                            [ctr(in_ if idx(r, c) in self else out)
+                             for c in colnums] +
+                            [u''])
+            print hdiv
 
 
 class Control(object):
@@ -523,8 +531,8 @@ class Control(object):
 
 
     def __str__(self):
-        return ','.join(sorted([''.join(Plate.from_index(w))
-                                for w in self.wells]))
+        return ','.join([''.join(Plate.from_index(w))
+                         for w in self.wells])
                                 
 
 
@@ -753,7 +761,8 @@ class Layout(object):
 
 
     def _check_controls(self):
-        controlled_region = set.union(*[c.region for c in self.controls])
+        #controlled_region = set.union(*[c.region for c in self.controls])
+        controlled_region = OrderedSet.union(*[c.region for c in self.controls])
         if len(controlled_region) != Plate.SIZE:
             assert len(controlled_region) < Plate.SIZE
             raise ValueError('layout contains uncontrolled wells')
@@ -828,19 +837,56 @@ class Layout(object):
                 print '|'.join(vs + [l.value(w)])
 
 
-    def dump(self, wanted=None):
-        width = 8
-        def ctr(s, w=width):
-            return unicode.center(unicode(s), w, u' ')
-        def lj(s, w=width):
-            return ctr(unicode.ljust(unicode(s), w - 2, u' '))
+    def dump(self, wanted=None, width=8, twidth=None):
+        if (width is None) == (twidth is None):
+            raise ValueError('exactly one of width and twidth must be None')
 
-        rows = self.mask.to_rows()
-        cols = sorted(set(sum(map(lambda x:
-                                  map(lambda y:
-                                      ctr(Plate.getcol(y)), x),
-                                  rows), [])))
-        colh = u''.join([ctr(u'')] + cols)
+#         def ctr(s, w=width):
+#             return unicode.center(unicode(s), w, u' ')
+#         def lj(s, w=width):
+#             return ctr(unicode.ljust(unicode(s), w - 2, u' '))
+
+        def mkctr(w):
+            def ctr(s):
+                return unicode.center(unicode(s), w, u' ')
+            return ctr
+
+        def mklj(w):
+            def lj(s):
+                return unicode.ljust(unicode(s), w, u' ')
+            return lj
+
+        def mkrj(w):
+            def rj(s):
+                return unicode.rjust(unicode(s), w, u' ')
+            return rj
+
+        def _flatten1(lol):
+            return sum(lol, [])
+
+        wellrows = self.mask.to_rows()
+#         cols = sorted(set(sum(map(lambda row:
+#                                   map(lambda well:
+#                                       ctr(Plate.getcol(well)), row),
+#                                   wellrows), [])))
+#         colh = u''.join([ctr(u'')] + cols)
+
+        cols = sorted(set(sum(map(lambda row: map(Plate.getcol, row),
+                                  wellrows), [])))
+
+        rowh = [unicode(Plate.from_rownum(i)) for i in range(Plate.NROWS)]
+        rowhw = 2 + max(map(len, rowh))
+        rj = mkrj(rowhw - 2)
+        rowh = map(rj, rowh)
+        topleft = blankrowhdr = rj(u'')
+
+        if twidth is not None:
+            mintwidth = Plate.NCOLS + rowhw + 1
+            if twidth < mintwidth:
+                raise ValueError('twidth must be at least %d' % mintwidth)
+            maxwidth = ((twidth - rowhw)//Plate.NCOLS) - 1
+            assert maxwidth > 0
+
         ls = self.tlayers + self.rlayers
 
         if wanted is None:
@@ -848,30 +894,69 @@ class Layout(object):
         else:
             wanted = set(wanted)
 
+        vdiv = u'|'
         for l in ls:
             if l.category not in wanted:
                 continue
-            print l.category
-            vs = map(lambda x: strs2cols(map(lambda y: l.value(y), x),
-                                         width - 2), rows)
+#             print l.category
+#             vs = map(lambda x: strs2cols(map(lambda y: l.value(y), x),
+#                                          width - 2), wellrows)
 
+#             mr = max(map(len, sum(vs, [])))
+#             for r in vs:
+#                 for c in r:
+#                     padlns(c, mr)
+
+#             for i, row in enumerate(vs):
+#                 if i == 0:
+#                     print colh
+#                 rh = len(row[0])
+#                 for j in range(rh):
+#                     r = unicode(Plate.from_rownum(i)) if j == 0 else u''
+#                     print u''.join(map(lj, [r] + [c[j] for c in row]))
+#                 if rh > 1:
+#                     print
+
+#             print
+#             if rh > 1:
+#                 print
+
+
+            rows = map(lambda row: map(lambda well: l.value(well), row),
+                       wellrows)
+
+            if width is None:
+                w = min([maxwidth,
+                         max(map(len, cols + _flatten1(rows)))])
+            else:
+                w = width
+
+            vs = map(partial(strs2cols, width=w), rows)
             mr = max(map(len, sum(vs, [])))
             for r in vs:
                 for c in r:
                     padlns(c, mr)
 
+            ctr = mkctr(w)
+            lj = mklj(w)
+            rowheight = mr
             for i, row in enumerate(vs):
                 if i == 0:
-                    print colh
-                rh = len(row[0])
-                for j in range(rh):
-                    r = unicode(Plate.from_rownum(i)) if j == 0 else u''
-                    print u''.join(map(lj, [r] + [c[j] for c in row]))
-                if rh > 1:
-                    print
+                    hrow = vdiv.join([u'', topleft] + map(ctr, cols) + [u''])
+                    top = bottom = u'-' * len(hrow)
+                    hdiv = re.sub(r'[^|]', '-', hrow)
+                    print top
+                    print hrow
+
+                print hdiv
+                for j in range(rowheight):
+                    r = rowh[i] if j == 0 else blankrowhdr
+                    print vdiv.join([u'', r] + [lj(c[j]) for c in row] + [u''])
+
+            print bottom
 
             print
-            if rh > 1:
+            if rowheight > 1:
                 print
 
 #         print '%s: %s' % (Plate.from_index(w),

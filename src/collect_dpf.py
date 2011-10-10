@@ -7,12 +7,15 @@ from dump_well_metadata import DEFAULT_LAYOUTS
 from multidict import MultiDict
 from noclobberdict import NoClobberDict
 
+from pdb import set_trace as ST
+
 def _parseargs(argv):
     path = argv[1]
+    mode = argv[2]
 
     d = dict()
     l = locals()
-    params = ('path')
+    params = ('path mode')
     for p in params.split():
         d[p] = l[p]
     _setparams(d)
@@ -38,6 +41,7 @@ def main(argv):
     _parseargs(argv)
     #print DEFAULT_LAYOUTS.keys()
     d, b = op.split(PARAM.path)
+    mode = PARAM.mode
     _, assay = op.split(d)
     tvals = defaultdict(NoClobberDict)
     for p in jglob(d, b + '?'):
@@ -45,13 +49,39 @@ def main(argv):
         layout = DEFAULT_LAYOUTS.get(op.join(assay, plate),
                                      DEFAULT_LAYOUTS.get(plate))
 
+        '''
+          1         2         3         4         5         6         7         8       
+*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*1234567
+'''
+        if mode == 't':
+            print plate
+            layout.dump(width=None, twidth=87)
+
+        '''
+0                                                                                                   1                                                                                                   2                                                                                                   3
+0         1         2         3         4         5         6         7         8         9         0         1         2         3         4         5         6         7         8         9         0         1         2         3         4         5         6         7         8         9         0
+*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*
+'''
+        if mode == 'c':
+            print plate
+            for c in layout.controls:
+                print c
+                for rn in 'wells', 'zone', 'region':
+                    reg = getattr(c, rn)
+                    print rn
+                    reg.show()
+                    print
+                print
+                print
+            print
+
         for k, v in layout.all_tvals().items():
             for rvals, wells in v.items():
                 tvals[k][rvals] = (plate, wells)
 
-    for tval, v in sorted(tvals.items()):
-        for rval, wells in sorted(v.items()):
-            print tval, rval, wells
+#     for tval, v in sorted(tvals.items()):
+#         for rval, wells in sorted(v.items()):
+#             print tval, rval, wells
 
 #     for c in getcontrols():
 #         data, warnings = extractdata(sum([list(find(getpath(w),
