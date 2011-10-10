@@ -633,24 +633,20 @@ class Layout(object):
         tls = self.tlayers
         rls = self.rlayers
         mask = self.mask
-        ret = MultiDict()
-        #+# ret = defaultdict(MultiDict)
+        ret = defaultdict(MultiDict)
 
         template = ['' for _ in rls]
         for w in sorted(mask):
             tvals = self.values(w, tls)
             rvals = self.values(w, rls)
-            ret[(tvals, rvals)] = ''.join(Plate.from_index(w))
-            #+# ret[tvals][rvals] = ''.join(Plate.from_index(w))
+            ret[tvals][rvals] = ''.join(Plate.from_index(w))
 
-        return dict(ret)
-        #+# return dict([(k, dict(v)) for k, v in ret.items()])
+        return dict([(k, dict(v)) for k, v in ret.items()])
         
 
     def implicit_tvals(self):
         tvals = dict()
-        ret = NoClobberDict()
-        #+# ret = defaultdict(NoClobberDict())
+        ret = defaultdict(NoClobberDict)
 
         tls = self.tlayers
         rls = self.rlayers
@@ -686,26 +682,19 @@ class Layout(object):
             assert 0 == sum(map(len, [set.intersection(set(x), set(y))
                                       for x, y in list(combinations(tvs, 2))]))
 
-            for tv in sorted(set(sum(tvs, []))):
-                ret[tv] = c
+            for tv, rv in sorted(set(sum(tvs, []))):
+                ret[tv][rv] = c
 
-            #+# for tv, rv in sorted(set(sum(tvs, []))):
-            #+#     ret[tv][rv] = c
-
-        return dict(ret)
-        #+# return dict([(k, dict(v)) for k, v in ret.items()])
+        return dict([(k, dict(v)) for k, v in ret.items()])
 
 
     def all_tvals(self):
-        ret = NoClobberDict()
-        #+# ret = defaultdict(NoClobberDict())
-        for d in self.tvals(), self.implict_tvals():
-            ret.update(d)
-        #+#     for k, v in d.items():
-        #+#         ret[k].update(v)
+        ret = defaultdict(NoClobberDict)
+        for d in self.tvals(), self.implicit_tvals():
+            for k, v in d.items():
+                ret[k].update(v)
 
-        return dict(ret)
-        #+# return dict([(k, dict(v)) for k, v in ret.items()])
+        return dict([(k, dict(v)) for k, v in ret.items()])
 
     def implicit_tvals__DISCARD(self):
         tl = self.tlayers
