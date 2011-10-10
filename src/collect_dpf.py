@@ -1,9 +1,11 @@
 import sys
 import os.path as op
 from glob import glob
+from collections import defaultdict
 
 from dump_well_metadata import DEFAULT_LAYOUTS
 from multidict import MultiDict
+from noclobberdict import NoClobberDict
 
 def _parseargs(argv):
     path = argv[1]
@@ -37,19 +39,19 @@ def main(argv):
     #print DEFAULT_LAYOUTS.keys()
     d, b = op.split(PARAM.path)
     _, assay = op.split(d)
+    tvals = defaultdict(NoClobberDict)
     for p in jglob(d, b + '?'):
         _, plate = op.split(p)
         layout = DEFAULT_LAYOUTS.get(op.join(assay, plate),
                                      DEFAULT_LAYOUTS.get(plate))
-        tvals = MultiDict()
 
-        for tval, v in sorted(layout.all_tvals().items()):
-            for rval, wells in sorted(v.items()):
-                print tval, rval, wells
-        print '======================='
-        continue
-        for pp in jglob(p, '*'):
-            print pp
+        for k, v in layout.all_tvals().items():
+            for rvals, wells in v.items():
+                tvals[k][rvals] = (plate, wells)
+
+    for tval, v in sorted(tvals.items()):
+        for rval, wells in sorted(v.items()):
+            print tval, rval, wells
 
 #     for c in getcontrols():
 #         data, warnings = extractdata(sum([list(find(getpath(w),
