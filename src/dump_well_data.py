@@ -10,6 +10,7 @@ import re
 
 import sdc_extract
 from shell_utils import mkdirp
+from find import find
 
 from pdb import set_trace as ST
 
@@ -24,24 +25,6 @@ from pdb import set_trace as ST
 #                           "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
 #                           "0123456789_")
 # _randomname.rng = random.Random()
-
-# def _mkoutdir(dir_, subdir='.DATA'):
-#     root = op.join(dir_, subdir)
-#     while True:
-#         b = _randomname()
-#         p = op.join(root, b)
-#         # RACE CONDITION!
-#         # TODO: make this method concurrency-safe
-#         if not op.exists(p):
-#             mkdirp(p)
-#             return p
-
-
-def _mkoutdir(dir_, subdir='.DATA'):
-    p = op.join(dir_, subdir, PARAM.wavelength, PARAM.readout)
-    mkdirp(p)
-    return p
-
 
 def _scrape_ncrmode(path, wavelength, basename='.METADATA.csv'):
     with open(op.join(path, basename), 'r') as metadata:
@@ -62,10 +45,11 @@ def _scrape_ncrmode(path, wavelength, basename='.METADATA.csv'):
         
 
 def _parseargs(argv):
+    nargs = len(argv)
+    assert 2 < nargs < 5
     path = argv[1]
     wavelength = argv[2]
-
-    ncrmode = _scrape_ncrmode(path, wavelength)
+    ncrmode = bool(int(argv[3])) if nargs > 3 else False
 
     if ncrmode:
         features = ('Nucleus_w%(wavelength)s (Mean),'
@@ -91,12 +75,13 @@ def _parseargs(argv):
         d[p] = l[p]
 
 
-def extractdata(path=None, wanted=None):
-    if path is None:
-        path = PARAM.path
+def extractdata(paths, wanted=None):
+
     if wanted is None:
         wanted = PARAM.features
-    rawdata = sdc_extract._extract_well_data(path, wanted)
+
+    rawdata = sdc_extract._extract_wells_data(paths, wanted)
+
     warnings = None
     if PARAM.ncrmode:
         ks = rawdata.keys()
@@ -208,11 +193,11 @@ def dump_csv(path, data, preamble):
         writer = csv.writer(outfh)
         writer.writerows(_encode_ndarray(data))
 
-def dump(todump):
-    path = PARAM.path
-    dir_ = _mkoutdir(path)
+
+def dump(basedir, todump):
     for level, v in todump.items():
-        dump_csv(op.join(dir_, level + '.csv'), **v)
+        # print op.join(basedir, level + '.csv')
+        dump_csv(op.join(basedir, level + '.csv'), **v)
 
 
 def transpose_map(map_):
@@ -224,7 +209,119 @@ def transpose_map(map_):
             ret[k1][k0] = v1
     return ret
     
-def main(argv):
+def getcontrols():
+    ret = []
+    with open(op.join(PARAM.path, '.METADATA.csv'), 'r') as fh:
+        for line in fh:
+            if not line.startswith('# CONTROL'):
+                continue
+            c = re.sub(r'# CONTROL\s+', r'',
+                       re.split(r'\s*:\s*', line)[0])
+            ret.append(c)
+        assert len(ret)
+        return ret
+
+
+def getpath(rc):
+    return op.join(PARAM.path, rc)
+
+
+# def _mkoutdir(dir_, subdir='.DATA'):
+#     root = op.join(dir_, subdir)
+#     while True:
+#         b = _randomname()
+#         p = op.join(root, b)
+#         # RACE CONDITION!
+#         # TODO: make this method concurrency-safe
+#         if not op.exists(p):
+#             mkdirp(p)
+#             return p
+
+
+def _mkoutdir(dir_, subdir='.DATA'):
+    p = op.join(dir_, subdir, PARAM.wavelength, PARAM.readout)
+    mkdirp(p)
+    return p
+
+
+def _parseargs__OLD(argv):
+    path = argv[1]
+    wavelength = argv[2]
+
+    ncrmode = _scrape_ncrmode(path, wavelength)
+
+    if ncrmode:
+        features = ('Nucleus_w%(wavelength)s (Mean),'
+                    'Cyto_w%(wavelength)s (Mean)' %
+                    locals()).split(',')
+        readout = 'ncratio'
+        abbrev = 'ncr'
+    else:
+        features = ['Whole_w%s (Mean)' % wavelength]
+        readout = 'wholecell'
+        abbrev = 'whc'
+
+    statpat = '%s (%%s)' % abbrev
+    coord_headers = 'assay plate well field wavelength'.split()
+
+    class _param(object): pass
+    global PARAM
+    PARAM = _param()
+    d = PARAM.__dict__
+    l = locals()
+    for p in ('path ncrmode features readout abbrev '
+              'statpat wavelength coord_headers'.split()):
+        d[p] = l[p]
+
+
+def extractdata__OLD(path=None, wanted=None):
+    if path is None:
+        path = PARAM.path
+    if wanted is None:
+        wanted = PARAM.features
+
+    rawdata = sdc_extract._extract_well_data(path, wanted)
+
+    warnings = None
+    if PARAM.ncrmode:
+        ks = rawdata.keys()
+        vs = rawdata.values()
+
+        def _cull_zeros(d):
+            assert d.shape[1] == 2
+            ret = d[d[:, 1] > 0.]
+            return ret, len(d) - len(ret)
+
+        cvs, nculled = zip(*map(_cull_zeros, vs))
+        tot = sum(nculled)
+        if tot > 0:
+            ss = ' + '.join(map(str, nculled))
+            warnings = ['data for %s = %d cells had to be culled '
+                        'to prevent division by zero' % (ss, tot)]
+
+        def _to_ncratio__trash(d):
+            # the lambda function below casts an array with shape (n,)
+            # to one with shape (n, 1); without this cast, hstack
+            # produces an array of shape (2*n,), whereas we want one
+            # with shape (n, 2).
+            return np.hstack([(d[:, 0]/d[:, 1])[:, None],
+                              (d[:, 2]/d[:, 3])[:, None]])
+
+        nvs = [d[:, 0]/d[:, 1] for d in cvs]
+        data = dict(zip(ks, nvs))
+    else:
+        data = rawdata
+
+    w = PARAM.wavelength
+    return dict([(k + (w,), v.reshape((v.size, 1))) for k, v in data.items()]), warnings
+
+def dump__OLD(todump):
+    path = PARAM.path
+    dir_ = _mkoutdir(path)
+    for level, v in todump.items():
+        dump_csv(op.join(dir_, level + '.csv'), **v)
+
+def main__OLD(argv):
     _parseargs(argv)
     data, warnings = extractdata()
     processed, rawheaders = process(data)
@@ -234,6 +331,28 @@ def main(argv):
     return 0
 
 
+def main(argv):
+    _parseargs(argv)
+
+    for c in getcontrols():
+        data, warnings = extractdata(sum([list(find(getpath(w),
+                                                    lambda b, d, i:
+                                                    b == 'Data.h5'))
+                                          for w in c.split(',')], []))
+
+        processed, rawheaders = process(data)
+        preamble = makepreamble(rawheaders, warnings)
+
+        path, wavelength, readout = [getattr(PARAM, a) for a in
+                                     'path wavelength readout'.split()]
+
+        basedir = op.join(path, '.DATA', wavelength, c, readout)
+        mkdirp(basedir)
+        dump(basedir, transpose_map(dict(data=processed,
+                                         preamble=preamble)))
+
+    return 0
+
+
 if __name__ == '__main__':
     exit(main(sys.argv))
-
