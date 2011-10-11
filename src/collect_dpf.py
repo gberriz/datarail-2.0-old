@@ -3,19 +3,22 @@ import os.path as op
 from glob import glob
 from collections import defaultdict
 
-from dump_well_metadata import DEFAULT_LAYOUTS
+from dump_well_metadata import DEFAULT_LAYOUTS, Control
 from multidict import MultiDict
 from noclobberdict import NoClobberDict
+from icbp45_utils import scrape_coords
 
 from pdb import set_trace as ST
 
 def _parseargs(argv):
     path = argv[1]
-    mode = argv[2]
+    mode = argv[2].lower() if len(argv) > 2 else ''
+
+    assay, _, _, _ = scrape_coords(path)
 
     d = dict()
     l = locals()
-    params = ('path mode')
+    params = ('path mode assay')
     for p in params.split():
         d[p] = l[p]
     _setparams(d)
@@ -39,7 +42,6 @@ def jglob(*args):
 
 def main(argv):
     _parseargs(argv)
-    #print DEFAULT_LAYOUTS.keys()
     d, b = op.split(PARAM.path)
     mode = PARAM.mode
     _, assay = op.split(d)
@@ -55,12 +57,12 @@ def main(argv):
 '''
         if mode == 't':
             print plate
-            layout.dump(width=None, twidth=87)
+            layout.dump()
 
         '''
-0                                                                                                   1                                                                                                   2                                                                                                   3
-0         1         2         3         4         5         6         7         8         9         0         1         2         3         4         5         6         7         8         9         0         1         2         3         4         5         6         7         8         9         0
-*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*
+                                                                                                    1                        
+          1         2         3         4         5         6         7         8         9         0         1         2    
+*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*1234
 '''
         if mode == 'c':
             print plate
@@ -79,26 +81,16 @@ def main(argv):
             for rvals, wells in v.items():
                 tvals[k][rvals] = (plate, wells)
 
-#     for tval, v in sorted(tvals.items()):
-#         for rval, wells in sorted(v.items()):
-#             print tval, rval, wells
-
-#     for c in getcontrols():
-#         data, warnings = extractdata(sum([list(find(getpath(w),
-#                                                     lambda b, d, i:
-#                                                     b == 'Data.h5'))
-#                                           for w in c.split(',')], []))
-
-#         processed, rawheaders = process(data)
-#         preamble = makepreamble(rawheaders, warnings)
-
-#         path, wavelength, readout = [getattr(PARAM, a) for a in
-#                                      'path wavelength readout'.split()]
-
-#         basedir = op.join(path, '.DATA', wavelength, c, readout)
-#         mkdirp(basedir)
-#         dump(basedir, transpose_map(dict(data=processed,
-#                                          preamble=preamble)))
+    if mode == '':
+        for tv, v in sorted(tvals.items()):
+            for rv, pwc in sorted(v.items()):
+                plate, wc = pwc
+                if type(wc) == Control:
+                    print plate, tv, rv, wc
+                elif len(wc) != 1:
+                    print 'skipped:', plate, tv, rv, wc
+                else:
+                    print plate, tv, rv, wc[0]
 
     return 0
 
