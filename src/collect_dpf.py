@@ -51,19 +51,10 @@ def main(argv):
         layout = DEFAULT_LAYOUTS.get(op.join(assay, plate),
                                      DEFAULT_LAYOUTS.get(plate))
 
-        '''
-          1         2         3         4         5         6         7         8       
-*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*1234567
-'''
         if mode == 't':
             print plate
             layout.dump()
 
-        '''
-                                                                                                    1                        
-          1         2         3         4         5         6         7         8         9         0         1         2    
-*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*123456789*1234
-'''
         if mode == 'c':
             print plate
             for c in layout.controls:
