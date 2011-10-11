@@ -837,54 +837,51 @@ class Layout(object):
                 print '|'.join(vs + [l.value(w)])
 
 
-    def dump(self, wanted=None, width=8, twidth=None):
-        if (width is None) == (twidth is None):
-            raise ValueError('exactly one of width and twidth must be None')
+    def dump(self, wanted=None, width=None, twidth=None, vdiv=u'|'):
 
-#         def ctr(s, w=width):
-#             return unicode.center(unicode(s), w, u' ')
-#         def lj(s, w=width):
-#             return ctr(unicode.ljust(unicode(s), w - 2, u' '))
+        if not (width is None or twidth is None):
+            raise ValueError('at most one of width and twidth can be '
+                             'different from None')
 
-        def mkctr(w):
+        if width is None and twidth is None:
+            from os import environ
+            twidth = int(environ.get('COLUMNS', 89)) - 2
+
+        def _mkctr(w):
             def ctr(s):
                 return unicode.center(unicode(s), w, u' ')
             return ctr
 
-        def mklj(w):
+        def _mklj(w):
             def lj(s):
                 return unicode.ljust(unicode(s), w, u' ')
             return lj
 
-        def mkrj(w):
-            def rj(s):
-                return unicode.rjust(unicode(s), w, u' ')
-            return rj
-
-        def _flatten1(lol):
-            return sum(lol, [])
-
         wellrows = self.mask.to_rows()
-#         cols = sorted(set(sum(map(lambda row:
-#                                   map(lambda well:
-#                                       ctr(Plate.getcol(well)), row),
-#                                   wellrows), [])))
-#         colh = u''.join([ctr(u'')] + cols)
-
         cols = sorted(set(sum(map(lambda row: map(Plate.getcol, row),
                                   wellrows), [])))
 
         rowh = [unicode(Plate.from_rownum(i)) for i in range(Plate.NROWS)]
-        rowhw = 2 + max(map(len, rowh))
-        rj = mkrj(rowhw - 2)
+        lvdiv = len(vdiv)
+
+        rowhw = 2*lvdiv + max(map(len, rowh))
+        def rj(s):
+            return unicode.rjust(unicode(s), rowhw - 2*lvdiv, u' ')
+
         rowh = map(rj, rowh)
         topleft = blankrowhdr = rj(u'')
 
         if twidth is not None:
-            mintwidth = Plate.NCOLS + rowhw + 1
+            assert width == None
+            # (twidth - rowhw)/ncols == width + lvdiv >= minwidth + lvdiv
+            # twidth - rowhw == (width + lvdiv)*ncols >= (minwidth + lvdiv)*ncols
+            # twidth == (width + lvdiv)*ncols + rowhw >= (minwidth + lvdiv)*ncols + rowhw == mintwidth
+            minwidth = 1
+            mintwidth = (minwidth + lvdiv)*Plate.NCOLS + rowhw
             if twidth < mintwidth:
                 raise ValueError('twidth must be at least %d' % mintwidth)
-            maxwidth = ((twidth - rowhw)//Plate.NCOLS) - 1
+            # (twidth - rowhw)//ncols - lvdiv == maxwidth
+            maxwidth = ((twidth - rowhw)//Plate.NCOLS) - lvdiv
             assert maxwidth > 0
 
         ls = self.tlayers + self.rlayers
@@ -894,40 +891,16 @@ class Layout(object):
         else:
             wanted = set(wanted)
 
-        vdiv = u'|'
         for l in ls:
             if l.category not in wanted:
                 continue
-#             print l.category
-#             vs = map(lambda x: strs2cols(map(lambda y: l.value(y), x),
-#                                          width - 2), wellrows)
-
-#             mr = max(map(len, sum(vs, [])))
-#             for r in vs:
-#                 for c in r:
-#                     padlns(c, mr)
-
-#             for i, row in enumerate(vs):
-#                 if i == 0:
-#                     print colh
-#                 rh = len(row[0])
-#                 for j in range(rh):
-#                     r = unicode(Plate.from_rownum(i)) if j == 0 else u''
-#                     print u''.join(map(lj, [r] + [c[j] for c in row]))
-#                 if rh > 1:
-#                     print
-
-#             print
-#             if rh > 1:
-#                 print
-
 
             rows = map(lambda row: map(lambda well: l.value(well), row),
                        wellrows)
 
             if width is None:
                 w = min([maxwidth,
-                         max(map(len, cols + _flatten1(rows)))])
+                         max(map(len, cols + _flatten(rows)))])
             else:
                 w = width
 
@@ -937,8 +910,8 @@ class Layout(object):
                 for c in r:
                     padlns(c, mr)
 
-            ctr = mkctr(w)
-            lj = mklj(w)
+            ctr = _mkctr(w)
+            lj = _mklj(w)
             rowheight = mr
             for i, row in enumerate(vs):
                 if i == 0:
@@ -959,16 +932,37 @@ class Layout(object):
             if rowheight > 1:
                 print
 
-#         print '%s: %s' % (Plate.from_index(w),
-#                           ', '.join([l.value(w) for l in ls]))
 
+def _flatten(ll, levels=None):
+    def __notiterable(x):
+        return not hasattr(x, '__iter__')
 
-def flatten(ll):
-    if hasattr(ll[0], '__iter__'):
-        return sum(map(flatten, ll), [])
-    else:
-        return ll
+    def __r(ll, levels=None):
+        if __notiterable(ll):
+            msg = ('argument 1 to _flatten must support iteration'
+                   if levels is None else
+                   'specified levels parameter exceeds depth of object')
+            raise TypeError(msg)
 
+        if levels > 0:
+            r = partial(__r, levels=levels-1)
+        elif levels is None and not any(map(__notiterable, ll)):
+            r = __r
+        else:
+            assert levels <= 0 or any(map(__notiterable, ll))
+            return ll
+        return sum(map(r, ll), [])
+
+    if levels is not None:
+        try:
+            levels - 0
+        except TypeError:
+            raise TypeError('argument 2 to _flatten must be an integer')
+    try:
+        return __r(ll, levels)
+    except Exception, e:
+        raise type(e)(*e.args)
+                                                           
 
 def wrap(s, width):
     p = -len(s) % width
