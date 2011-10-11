@@ -498,6 +498,9 @@ class Region(OrderedSet):
                             [u''])
             print hdiv
 
+    def __str__(self):
+        return ','.join([''.join(Plate.from_index(w)) for w in self])
+
 
 class Control(object):
     def __init__(self, wells, zone, tval_specs):
@@ -529,10 +532,8 @@ class Control(object):
             for s in ss:
                 tvs.append((s, reg))
 
-
     def __str__(self):
-        return ','.join([''.join(Plate.from_index(w))
-                         for w in self.wells])
+        return str(self.wells)
                                 
 
 
@@ -704,61 +705,6 @@ class Layout(object):
 
         return dict([(k, dict(v)) for k, v in ret.items()])
 
-    def implicit_tvals__DISCARD(self):
-        tl = self.tlayers
-        orphans = self._orphans
-        ret = dict()
-        seen = set()
-
-        print orphans
-        print
-
-        for c in self.controls:
-            available = [self.values(w, tl) for w in sorted(c.region)]
-            possible = list(product(*map(set.union, map(set, zip(*available)),
-                                         orphans)))
-            missing = sorted(set(possible).difference(set(available)))
-            sm = set(missing)
-            assert len(missing) == len(sm)
-
-            #print c
-
-            if seen.intersection(sm):
-                #seen_c = set([ret[s] for s in seen.intersection(sm)])
-                #print seen_c
-                for tval in sorted(seen.intersection(sm)):
-                    print ','.join(tval)
-                print
-                print
-
-                for tval in sorted(seen.difference(sm)):
-                    print ','.join(tval)
-                print
-                print
-
-                for tval in sorted(sm.difference(seen)):
-                    print ','.join(tval)
-                print
-                print
-
-            assert not seen.intersection(sm)
-
-            seen.update(sm)
-            #print seen
-            #print
-            for s in missing:
-                assert s not in ret
-                ret[s] = c
-
-#             print ('control wells: %s' %
-#                    ', '.join([''.join(Plate.from_index(x)) for x in
-#                               sorted(c.wells)]))
-#             for t in missing:
-#                 print ','.join(t)
-
-#             ret[c] = missing
-        return ret
-
 
     def _check_controls(self):
         #controlled_region = set.union(*[c.region for c in self.controls])
@@ -799,10 +745,7 @@ class Layout(object):
     def plate_metadata(self):
         ret = []
         for c in self.controls:
-            wells, zone = [','.join([''.join(Plate.from_index(i))
-                                     for i in sorted(ws)])
-                           for ws in c.wells, c.zone]
-                           
+            wells, zone = map(str, (c.wells, c.zone))
             ret.append('# CONTROL %s : %s' % (wells, zone))
         return ret
 
