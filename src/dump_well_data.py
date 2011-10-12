@@ -110,14 +110,6 @@ def extractdata(paths, param):
             warnings = ['data for %s = %d cells had to be culled '
                         'to prevent division by zero' % (ss, tot)]
 
-        def _to_ncratio__trash(d):
-            # the lambda function below casts an array with shape (n,)
-            # to one with shape (n, 1); without this cast, hstack
-            # produces an array of shape (2*n,), whereas we want one
-            # with shape (n, 2).
-            return np.hstack([(d[:, 0]/d[:, 1])[:, None],
-                              (d[:, 2]/d[:, 3])[:, None]])
-
         nvs = [d[:, 0]/d[:, 1] for d in cvs]
         data = dict(zip(ks, nvs))
     else:
