@@ -15,18 +15,6 @@ from icbp45_utils import scrape_coords
 
 from pdb import set_trace as ST
 
-# def _randomname():
-#     me = _randomname
-#     c = me.characters
-#     choose = me.rng.choice
-#     letters = [choose(c) for _ in "123456"]
-#     return op.normcase(''.join(letters))
-
-# _randomname.characters = ("abcdefghijklmnopqrstuvwxyz" +
-#                           "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
-#                           "0123456789_")
-# _randomname.rng = random.Random()
-
 def _scrape_ncrmode(path, antibody, basename='.METADATA.csv'):
     with open(op.join(path, basename), 'r') as metadata:
         lines = metadata.read().splitlines()
@@ -95,15 +83,18 @@ def _setparams(d):
         _setparams(d)
 
 
-def extractdata(paths, wanted=None):
+def extractdata(paths, param):
 
-    if wanted is None:
-        wanted = PARAM.features
+    wanted = param.features
+    ncrmode = param.ncrmode
+    # TODO: this dependency on the "antibody" parameter is entirely
+    # superfluous at this point, and should be factored out
+    antibody = param.antibody
 
     rawdata = sdc_extract._extract_wells_data(paths, wanted)
 
     warnings = None
-    if PARAM.ncrmode:
+    if ncrmode:
         ks = rawdata.keys()
         vs = rawdata.values()
 
@@ -132,9 +123,8 @@ def extractdata(paths, wanted=None):
     else:
         data = rawdata
 
-    #w = PARAM.wavelength
-    w = PARAM.antibody
-    return dict([(k + (w,), v.reshape((v.size, 1))) for k, v in data.items()]), warnings
+    return (dict([(k + (antibody,), v.reshape((v.size, 1)))
+                  for k, v in data.items()]), warnings)
 
 
 def makeheaders(headers):
@@ -158,7 +148,9 @@ def makepreamble(rawheaders, warnings=[]):
     return preamble
 
 
-def process(data):
+def process(data, param):
+    statpat = param.statpat
+    coord_headers = param.coord_headers
 
     def _tolist(d):
         return list(d) if hasattr(d, '__iter__') else [d]
@@ -177,9 +169,6 @@ def process(data):
     # single-cell data
     cd = sum([[_tolist(coords) + row for row in _tofloat(arr)]
               for coords, arr in sorted(data.items())], [])
-
-    statpat = PARAM.statpat
-    coord_headers = PARAM.coord_headers
 
     ch = coord_headers + [statpat % 'cm']
 
@@ -230,9 +219,9 @@ def transpose_map(map_):
             ret[k1][k0] = v1
     return ret
     
-def getcontrols():
+def getcontrols(path):
     ret = []
-    with open(op.join(PARAM.path, '.METADATA.csv'), 'r') as fh:
+    with open(op.join(path, '.METADATA.csv'), 'r') as fh:
         for line in fh:
             if not line.startswith('# CONTROL'):
                 continue
@@ -243,141 +232,29 @@ def getcontrols():
         return ret
 
 
-def getpath(rc):
-    return op.join(PARAM.path, rc)
-
-
-def _mkoutdir(dir_, subdir='.DATA'):
-    #p = op.join(dir_, subdir, PARAM.wavelength, PARAM.readout)
-    p = op.join(dir_, subdir, PARAM.antibody, PARAM.readout)
-    mkdirp(p)
-    return p
-
-
-def _parseargs__OLD(argv):
-    path = argv[1]
-    wavelength = argv[2]
-    antibody = '%s_antibody' % wavelength
-
-    ncrmode = _scrape_ncrmode(path, antibody)
-
-    if ncrmode:
-        features = ('Nucleus_w%(wavelength)s (Mean),'
-                    'Cyto_w%(wavelength)s (Mean)' %
-                    locals()).split(',')
-        readout = 'ncratio'
-        abbrev = 'ncr'
-    else:
-        features = ['Whole_w%s (Mean)' % wavelength]
-        readout = 'wholecell'
-        abbrev = 'whc'
-
-    statpat = '%s (%%s)' % abbrev
-    coord_headers = 'assay plate well field antibody'.split()
-
-    class _param(object): pass
-    global PARAM
-    PARAM = _param()
-    d = PARAM.__dict__
-    l = locals()
-    for p in ('path ncrmode features readout abbrev '
-              'statpat wavelength antibody coord_headers'.split()):
-        d[p] = l[p]
-
-
-def extractdata__OLD(path=None, wanted=None):
-    if path is None:
-        path = PARAM.path
-    if wanted is None:
-        wanted = PARAM.features
-
-    rawdata = sdc_extract._extract_well_data(path, wanted)
-
-    warnings = None
-    if PARAM.ncrmode:
-        ks = rawdata.keys()
-        vs = rawdata.values()
-
-        def _cull_zeros(d):
-            assert d.shape[1] == 2
-            ret = d[d[:, 1] > 0.]
-            return ret, len(d) - len(ret)
-
-        cvs, nculled = zip(*map(_cull_zeros, vs))
-        tot = sum(nculled)
-        if tot > 0:
-            ss = ' + '.join(map(str, nculled))
-            warnings = ['data for %s = %d cells had to be culled '
-                        'to prevent division by zero' % (ss, tot)]
-
-        def _to_ncratio__trash(d):
-            # the lambda function below casts an array with shape (n,)
-            # to one with shape (n, 1); without this cast, hstack
-            # produces an array of shape (2*n,), whereas we want one
-            # with shape (n, 2).
-            return np.hstack([(d[:, 0]/d[:, 1])[:, None],
-                              (d[:, 2]/d[:, 3])[:, None]])
-
-        nvs = [d[:, 0]/d[:, 1] for d in cvs]
-        data = dict(zip(ks, nvs))
-    else:
-        data = rawdata
-
-    #w = PARAM.wavelength
-    w = PARAM.antibody
-    return dict([(k + (w,), v.reshape((v.size, 1))) for k, v in data.items()]), warnings
-
-def dump__OLD(todump):
-    path = PARAM.path
-    dir_ = _mkoutdir(path)
-    for level, v in todump.items():
-        dump_csv(op.join(dir_, level + '.csv'), **v)
-
-# def _mkoutdir__OLD(dir_, subdir='.DATA'):
-#     root = op.join(dir_, subdir)
-#     while True:
-#         b = _randomname()
-#         p = op.join(root, b)
-#         # RACE CONDITION!
-#         # TODO: make this method concurrency-safe
-#         if not op.exists(p):
-#             mkdirp(p)
-#             return p
-
-def main__OLD(argv):
-    _parseargs(argv)
-    data, warnings = extractdata()
-    processed, rawheaders = process(data)
-    preamble = makepreamble(rawheaders, warnings)
-    dump(transpose_map(dict(data=processed,
-                            preamble=preamble)))
-    return 0
-
-
 def main(argv):
     _parseargs(argv)
 
     def want_h5(b, d, i):
         return b == 'Data.h5'
 
-    path = PARAM.path
     subdir = '.DATA'
     extent, path, antibody, readout = [getattr(PARAM, a) for a in
                                        'extent path antibody readout'.split()]
 
     if extent == 'plate':
-        todo = [(sum([list(find(getpath(w), want_h5))
-                     for w in c.split(',')], []),
-                 op.join(path, subdir, antibody, c, readout))
-                for c in getcontrols()]
+        q = [(sum([list(find(op.join(path, w), want_h5))
+                   for w in c.split(',')], []),
+              op.join(path, subdir, antibody, c, readout))
+             for c in getcontrols(path)]
     else:
         assert extent == 'well'
-        todo = [(find(path, want_h5),
-                 op.join(path, subdir, antibody, readout))]
+        q = [(find(path, want_h5),
+              op.join(path, subdir, antibody, readout))]
 
-    for paths, basedir in todo:
-        data, warnings = extractdata(paths)
-        processed, rawheaders = process(data)
+    for paths, basedir in q:
+        data, warnings = extractdata(paths, PARAM)
+        processed, rawheaders = process(data, PARAM)
         preamble = makepreamble(rawheaders, warnings)
         mkdirp(basedir)
         dump(basedir, transpose_map(dict(data=processed, preamble=preamble)))
