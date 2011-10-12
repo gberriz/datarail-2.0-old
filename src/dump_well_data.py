@@ -11,6 +11,7 @@ import re
 import sdc_extract
 from shell_utils import mkdirp
 from find import find
+from icbp45_utils import scrape_coords
 
 from pdb import set_trace as ST
 
@@ -26,13 +27,11 @@ from pdb import set_trace as ST
 #                           "0123456789_")
 # _randomname.rng = random.Random()
 
-def _scrape_ncrmode(path, wavelength, basename='.METADATA.csv'):
+def _scrape_ncrmode(path, antibody, basename='.METADATA.csv'):
     with open(op.join(path, basename), 'r') as metadata:
         lines = metadata.read().splitlines()
         for i, line in enumerate(lines):
-            m = re.match(r'#\s*column\s*(\d+)\s*:\s*'
-                         r'%s_antibody' % wavelength,
-                         line)
+            m = re.match(r'#\s*column\s*(\d+)\s*:\s*%s' % antibody, line)
             if not m:
                 continue
             colnum = int(m.group(1)) - 1
@@ -41,16 +40,24 @@ def _scrape_ncrmode(path, wavelength, basename='.METADATA.csv'):
                     continue
                 return line.split(',')[colnum].startswith('NF-κB')
         else:
-            raise ValueError("can't find column for %s_antibody" % wavelength)
-        
+            raise ValueError("can't find column for %s" % antibody)
+     
 
 def _parseargs(argv):
     nargs = len(argv)
     assert 2 < nargs < 5
     path = argv[1]
-    wavelength = argv[2]
-    ncrmode = bool(int(argv[3])) if nargs > 3 else False
 
+    assay, plate, well, _ = scrape_coords(path)
+    extent = 'plate' if well is None else 'well'
+    wavelength = argv[2]
+    antibody = '%s_antibody' % wavelength
+
+    if extent == 'plate':
+        ncrmode = bool(int(argv[3])) if nargs > 3 else False
+    else:
+        ncrmode = _scrape_ncrmode(path, antibody)
+        
     if ncrmode:
         features = ('Nucleus_w%(wavelength)s (Mean),'
                     'Cyto_w%(wavelength)s (Mean)' %
@@ -63,16 +70,29 @@ def _parseargs(argv):
         abbrev = 'whc'
 
     statpat = '%s (%%s)' % abbrev
-    coord_headers = 'assay plate well field wavelength'.split()
+    coord_headers = 'assay plate well field antibody'.split()
 
-    class _param(object): pass
-    global PARAM
-    PARAM = _param()
-    d = PARAM.__dict__
+    d = dict()
     l = locals()
-    for p in ('path ncrmode features readout abbrev '
-              'statpat wavelength coord_headers'.split()):
+    params = ('path ncrmode features readout abbrev '
+              'statpat wavelength antibody coord_headers '
+              'assay plate well extent')
+
+    for p in params.split():
         d[p] = l[p]
+    _setparams(d)
+
+
+def _setparams(d):
+    global PARAM
+    try:
+        pd = PARAM.__dict__
+        pd.clear()
+        pd.update(d)
+    except NameError:
+        class _param(object): pass
+        PARAM = _param()
+        _setparams(d)
 
 
 def extractdata(paths, wanted=None):
@@ -112,7 +132,8 @@ def extractdata(paths, wanted=None):
     else:
         data = rawdata
 
-    w = PARAM.wavelength
+    #w = PARAM.wavelength
+    w = PARAM.antibody
     return dict([(k + (w,), v.reshape((v.size, 1))) for k, v in data.items()]), warnings
 
 
@@ -226,20 +247,9 @@ def getpath(rc):
     return op.join(PARAM.path, rc)
 
 
-# def _mkoutdir(dir_, subdir='.DATA'):
-#     root = op.join(dir_, subdir)
-#     while True:
-#         b = _randomname()
-#         p = op.join(root, b)
-#         # RACE CONDITION!
-#         # TODO: make this method concurrency-safe
-#         if not op.exists(p):
-#             mkdirp(p)
-#             return p
-
-
 def _mkoutdir(dir_, subdir='.DATA'):
-    p = op.join(dir_, subdir, PARAM.wavelength, PARAM.readout)
+    #p = op.join(dir_, subdir, PARAM.wavelength, PARAM.readout)
+    p = op.join(dir_, subdir, PARAM.antibody, PARAM.readout)
     mkdirp(p)
     return p
 
@@ -247,8 +257,9 @@ def _mkoutdir(dir_, subdir='.DATA'):
 def _parseargs__OLD(argv):
     path = argv[1]
     wavelength = argv[2]
+    antibody = '%s_antibody' % wavelength
 
-    ncrmode = _scrape_ncrmode(path, wavelength)
+    ncrmode = _scrape_ncrmode(path, antibody)
 
     if ncrmode:
         features = ('Nucleus_w%(wavelength)s (Mean),'
@@ -262,7 +273,7 @@ def _parseargs__OLD(argv):
         abbrev = 'whc'
 
     statpat = '%s (%%s)' % abbrev
-    coord_headers = 'assay plate well field wavelength'.split()
+    coord_headers = 'assay plate well field antibody'.split()
 
     class _param(object): pass
     global PARAM
@@ -270,7 +281,7 @@ def _parseargs__OLD(argv):
     d = PARAM.__dict__
     l = locals()
     for p in ('path ncrmode features readout abbrev '
-              'statpat wavelength coord_headers'.split()):
+              'statpat wavelength antibody coord_headers'.split()):
         d[p] = l[p]
 
 
@@ -312,7 +323,8 @@ def extractdata__OLD(path=None, wanted=None):
     else:
         data = rawdata
 
-    w = PARAM.wavelength
+    #w = PARAM.wavelength
+    w = PARAM.antibody
     return dict([(k + (w,), v.reshape((v.size, 1))) for k, v in data.items()]), warnings
 
 def dump__OLD(todump):
@@ -320,6 +332,17 @@ def dump__OLD(todump):
     dir_ = _mkoutdir(path)
     for level, v in todump.items():
         dump_csv(op.join(dir_, level + '.csv'), **v)
+
+# def _mkoutdir__OLD(dir_, subdir='.DATA'):
+#     root = op.join(dir_, subdir)
+#     while True:
+#         b = _randomname()
+#         p = op.join(root, b)
+#         # RACE CONDITION!
+#         # TODO: make this method concurrency-safe
+#         if not op.exists(p):
+#             mkdirp(p)
+#             return p
 
 def main__OLD(argv):
     _parseargs(argv)
@@ -334,23 +357,31 @@ def main__OLD(argv):
 def main(argv):
     _parseargs(argv)
 
-    for c in getcontrols():
-        data, warnings = extractdata(sum([list(find(getpath(w),
-                                                    lambda b, d, i:
-                                                    b == 'Data.h5'))
-                                          for w in c.split(',')], []))
+    def want_h5(b, d, i):
+        return b == 'Data.h5'
 
+    path = PARAM.path
+    subdir = '.DATA'
+    extent, path, antibody, readout = [getattr(PARAM, a) for a in
+                                       'extent path antibody readout'.split()]
+
+    if extent == 'plate':
+        todo = [(sum([list(find(getpath(w), want_h5))
+                     for w in c.split(',')], []),
+                 op.join(path, subdir, antibody, c, readout))
+                for c in getcontrols()]
+    else:
+        assert extent == 'well'
+        todo = [(find(path, want_h5),
+                 op.join(path, subdir, antibody, readout))]
+
+    for paths, basedir in todo:
+        data, warnings = extractdata(paths)
         processed, rawheaders = process(data)
         preamble = makepreamble(rawheaders, warnings)
-
-        path, wavelength, readout = [getattr(PARAM, a) for a in
-                                     'path wavelength readout'.split()]
-
-        basedir = op.join(path, '.DATA', wavelength, c, readout)
         mkdirp(basedir)
-        dump(basedir, transpose_map(dict(data=processed,
-                                         preamble=preamble)))
-
+        dump(basedir, transpose_map(dict(data=processed, preamble=preamble)))
+        
     return 0
 
 
