@@ -32,23 +32,134 @@ REGION = {
   },
 }
 
+ANTIBODY = {
+    u'NF-κB-m-488': u'530',
+    u'NF-κB-m-647': u'685',
+    u'pAkt-m-488': u'530',
+    u'pAkt-r-647': u'685',
+    u'pErk-CK-m-488': u'530',
+    u'pErk-CK-m-647': u'685',
+    u'pErk-m-488': u'530',
+    u'pErk-r-647': u'685',
+    u'pJNK-m-488': u'530',
+    u'pJNK-r-647': u'685',
+    u'pP38-m-488': u'530',
+    u'pP38-r-647': u'685',
+    u'STAT1-r-488': u'530',
+    u'STAT1-r-647': u'685',
+    u'STAT3-r-488': u'530',
+    u'STAT3-r-647': u'685',
+}
+
 CONTROL = {
   u'GF':                   [[u'F*-6', u'-*-\F*-6',
                               {u'z': [u'ligand_concentration=0',
-                                      u'ligand_concentration=0*time=0',],
+                                      u'ligand_concentration=0*time=0',
+                                      u'time=0',],
                                u'w': [u'time=0',],},],],
   u'CK':                   [[u'D*-6', u'-*-6\D*-6',
                               {u'z': [u'ligand_concentration=0',
-                                      u'ligand_concentration=0*time=0',],
+                                      u'ligand_concentration=0*time=0',
+                                      u'time=0',],
                                u'w': [u'time=0',],},],
                             [u'D*7-', u'-*7-\D*7-',
                               {u'z': [u'ligand_concentration=0',
-                                      u'ligand_concentration=0*time=0',],
+                                      u'ligand_concentration=0*time=0',
+                                      u'time=0',],
                                u'w': [u'time=0',],},],],
   u'20100925_HCC1806/GF1': [[u'F*1,2;C*10,9;F*5,6', u'-*-',
                               {u'z': [u'ligand_concentration=0',
-                                      u'ligand_concentration=0*time=0',],
+                                      u'ligand_concentration=0*time=0',
+                                      u'time=0',],
                                u'w': [u'time=0',],},],],
+}
+
+class Antibody(tuple):
+    def __new__(cls, target, readout):
+        return super(Antibody, cls).__new__(cls, (target, readout))
+
+    def __init__(self, target, readout):
+        #super(Antibody, self).__init__((target, readout))
+        self.target = target
+        self.readout = readout
+
+    def __str__(self):
+        return self.target
+
+KLUGE = {
+  u'ligand': {
+    u'units': None,
+    u'values': set([
+      u'VEGFF',
+      u'EGF',
+      u'EPR',
+      u'BTC',
+      u'HRG',
+      u'CTRL-GF',
+      u'FGF1',
+      u'FGF2',
+      u'NGF',
+      u'INS',
+      u'IGF-1',
+      u'IGF-2',
+      u'SCF',
+      u'HGF',
+      u'PDGFBB',
+      u'EFNA1',
+      u'LPS',
+      u'IL-1α',
+      u'IL-6',
+      u'CTRL-CK-L',
+      u'CTRL-CK-R',
+      u'IFN-α',
+      u'IFN-γ',
+      u'TNF-α',
+      u'IL-2',
+    ]),
+  },
+  u'ligand_concentration': {
+    u'units': 'ng/ml',
+    u'values': set([
+      u'0',
+      u'1',
+      u'100',
+    ]),
+  },
+  u'time': {
+    u'units': 'min',
+    u'values': set([
+      u'0',
+      u'10',
+      u'30',
+      u'90',
+    ]),
+  },
+  u'530_antibody': {
+    u'units': None,
+    u'values': set([
+      Antibody(u'pAkt-m-488', 'wholecell'),
+      Antibody(u'pErk-m-488', 'wholecell'),
+      Antibody(u'pJNK-m-488', 'wholecell'),
+      Antibody(u'pP38-m-488', 'wholecell'),
+      Antibody(u'NF-κB-m-488', 'ncratio'),
+      Antibody(u'pErk-CK-m-488', 'wholecell'),
+      Antibody(u'STAT1-r-488', 'wholecell'),
+      Antibody(u'STAT3-r-488', 'wholecell'),
+    ]),
+  },
+  u'685_antibody': {
+    u'units': None,
+    u'values': set([
+      Antibody(u'pErk-r-647', 'wholecell'),
+      Antibody(u'pAkt-r-647', 'wholecell'),
+      Antibody(u'pP38-r-647', 'wholecell'),
+      Antibody(u'pJNK-r-647', 'wholecell'),
+      Antibody(u'STAT1-r-647', 'wholecell'),
+      Antibody(u'STAT3-r-647', 'wholecell'),
+      Antibody(u'NF-κB-m-647', 'ncratio'),
+      Antibody(u'pErk-CK-m-647', 'wholecell'),
+    ]),
+  },
 }
 
 LAYER = {
@@ -520,14 +631,19 @@ class Control(object):
         self.tval_specs = tvs = []
 
         for code, ss in tval_specs.items():
-            if code == 'r':
+            if code == 'z':
+                reg = self.zone
+            elif code == 'r':
                 reg = self.region
             elif code == 'w':
                 reg = self.wells
-            elif code == 'z':
-                reg = self.zone
             else:
                 raise ValueError('unknown control region code: "%s"' % code)
+
+            # YAK: until we decide we need them, if ever, I'm
+            # disabling all implicit treatment values outside of the
+            # control's "zone" region
+            if code != 'z': continue
 
             for s in ss:
                 tvs.append((s, reg))
@@ -538,8 +654,9 @@ class Control(object):
 
 
 class Layer(object):
-    def __init__(self, category=None, spec={}):
+    def __init__(self, category=None, units=None, spec={}):
         self.category = category
+        self.units = units
         self._origspec = spec
         self.spec = s = dict()
         self.w2v = t = [None for _ in range(Plate.SIZE)]
@@ -591,6 +708,9 @@ class Layer(object):
         ret.size = sz = len(allws)
         ret.allws = allws
         return ret
+
+    def __str__(self):
+        return self.category
         
 
 class Layout(object):
@@ -647,7 +767,8 @@ class Layout(object):
         template = ['' for _ in rls]
         for w in sorted(mask):
             tvals = self.values(w, tls)
-            rvals = self.values(w, rls)
+            rvals = tuple(zip([l.category for l in rls],
+                              self.values(w, rls)))
             ret[tvals][rvals] = ''.join(Plate.from_index(w))
 
         return dict([(k, dict(v)) for k, v in ret.items()])
@@ -659,6 +780,7 @@ class Layout(object):
 
         tls = self.tlayers
         rls = self.rlayers
+
         tl_n = [t.category for t in tls]
 
         def _parse_spec(s):
@@ -670,7 +792,11 @@ class Layout(object):
             for specs, region in c.tval_specs:
                 wsd = MultiDict()
                 for w in region:
-                    wsd[self.values(w, rls)] = w
+                    # wsd[self.values(w, rls)] = w
+                    rv = tuple(zip([l.category for l in rls],
+                                   self.values(w, rls)))
+                    wsd[rv] = w
+
 
                 for rl, ws in wsd.items():
                     tl_v = map(list,
@@ -936,7 +1062,13 @@ def default_layouts():
         for k in ks:
             v = layermap[k]
             if isinstance(v.values()[0], StringTypes):
-                layermap[k] = Layer(category, v)
+                kluge = KLUGE[category]
+                #vs = kluge['values']
+                #assert not any([vv not in vs for vv in v.keys()])
+                #layermap[k] = Layer(category, kluge['units'], v)
+                dok = dict((unicode(x), x) for x in kluge['values'])
+                dov = dict((dok[k], v[k]) for k in v.keys())
+                layermap[k] = Layer(category, kluge['units'], dov)
             else:
                 c = k if category is None else category
                 convert(v, category=category or k)
@@ -1029,16 +1161,20 @@ def dump_plate_metadata(path, data, preamble):
 def dump(basename='.METADATA.csv'):
     layout = getlayout(PARAM.assay, PARAM.plate)
     plate_path = PARAM.path
-#     for p in rc_path_iter(plate_path):
-#         rc = op.basename(p)
-#         dump_well_metadata(op.join(p, basename),
-#                            [layout.well_metadata(rc)],
-#                            layout.well_preamble(rc))
 
+    for p in rc_path_iter(plate_path):
+        rc = op.basename(p)
+        #print op.join(p, basename)
+        #continue
+        dump_well_metadata(op.join(p, basename),
+                           [layout.well_metadata(rc)],
+                           layout.well_preamble(rc))
+
+    #print op.join(plate_path, basename)
+    #return
     dump_plate_metadata(op.join(plate_path, basename),
                         layout.plate_metadata(),
                         layout.plate_preamble())
-                        
 
 #     path = _mkoutpath()
 #     with open(path, 'w') as outfh:

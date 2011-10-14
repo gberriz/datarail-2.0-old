@@ -7,6 +7,10 @@ import tempfile
 import numpy as np
 import csv
 import re
+from copy import copy
+from glob import glob
+from functools import partial
+from operator import not_ as notop
 
 import sdc_extract
 from shell_utils import mkdirp
@@ -31,6 +35,24 @@ def _scrape_ncrmode(path, antibody, basename='.METADATA.csv'):
             raise ValueError("can't find column for %s" % antibody)
      
 
+class _dimspec(object):
+    def __init__(self, ncrmode, **kw):
+        d = self.__dict__
+        d.update(kw)
+        self.ncrmode = ncrmode
+        if ncrmode:
+            d.update(features=('Nucleus_w%(wavelength)s (Mean),'
+                               'Cyto_w%(wavelength)s (Mean)' % d).split(','),
+                     readout='ncratio',
+                     abbrev='ncr')
+        else:
+            d.update(features=['Whole_w%(wavelength)s (Mean)' % d],
+                     readout='wholecell',
+                     abbrev='whc')
+
+        self.statpat = '%s (%%s)' % self.abbrev
+        self.coord_headers = 'assay plate well field antibody'.split()
+
 def _parseargs(argv):
     nargs = len(argv)
     assert 2 < nargs < 5
@@ -41,29 +63,9 @@ def _parseargs(argv):
     wavelength = argv[2]
     antibody = '%s_antibody' % wavelength
 
-    if extent == 'plate':
-        ncrmode = bool(int(argv[3])) if nargs > 3 else False
-    else:
-        ncrmode = _scrape_ncrmode(path, antibody)
-        
-    if ncrmode:
-        features = ('Nucleus_w%(wavelength)s (Mean),'
-                    'Cyto_w%(wavelength)s (Mean)' %
-                    locals()).split(',')
-        readout = 'ncratio'
-        abbrev = 'ncr'
-    else:
-        features = ['Whole_w%s (Mean)' % wavelength]
-        readout = 'wholecell'
-        abbrev = 'whc'
-
-    statpat = '%s (%%s)' % abbrev
-    coord_headers = 'assay plate well field antibody'.split()
-
     d = dict()
     l = locals()
-    params = ('path ncrmode features readout abbrev '
-              'statpat wavelength antibody coord_headers '
+    params = ('path wavelength antibody '
               'assay plate well extent')
 
     for p in params.split():
@@ -124,6 +126,7 @@ def makeheaders(headers):
     for i, w in enumerate(headers):
         lines.append('# column %d: %s' % (i + 1, w))
     return lines
+
 
 def makepreamble(rawheaders, warnings=[]):
     rh = rawheaders
@@ -217,12 +220,17 @@ def getcontrols(path):
         for line in fh:
             if not line.startswith('# CONTROL'):
                 continue
-            c = re.sub(r'# CONTROL\s+', r'',
-                       re.split(r'\s*:\s*', line)[0])
-            ret.append(c)
+            h, t = re.split(r'\s*:\s*', line.strip())
+            ret.append(tuple([s.split(',')
+                              for s in
+                              re.sub(r'# CONTROL\s+', r'', h),
+                              t]))
         assert len(ret)
         return ret
 
+
+def jglob(*args):
+    return sorted(glob(op.join(*args)))
 
 def main(argv):
     _parseargs(argv)
@@ -231,25 +239,46 @@ def main(argv):
         return b == 'Data.h5'
 
     subdir = '.DATA'
-    extent, path, antibody, readout = [getattr(PARAM, a) for a in
-                                       'extent path antibody readout'.split()]
+    extent, path, antibody = [getattr(PARAM, a) for a in
+                              'extent path antibody'
+                              .split()]
 
+#     if extent == 'plate':
+#         ncrmode = bool(int(argv[3])) if nargs > 3 else False
+#     else:
+#         ncrmode = _scrape_ncrmode(path, antibody)
+
+    param = PARAM
     if extent == 'plate':
+        def mode(path, wells, antibody):
+            modes = map(partial(_scrape_ncrmode, antibody=antibody),
+                        [op.join(path, w) for w in wells])
+
+            if all(modes):
+                return True
+            else:
+                assert all(map(notop, modes))
+                return False
+
         q = [(sum([list(find(op.join(path, w), want_h5))
-                   for w in c.split(',')], []),
-              op.join(path, subdir, antibody, c, readout))
-             for c in getcontrols(path)]
+                   for w in c], []),
+              _dimspec(mode(path, z, antibody), **param.__dict__),
+              op.join(path, subdir, antibody, ','.join(c)))
+             for c, z in getcontrols(path)]
     else:
+        ncrmode = _scrape_ncrmode(path, antibody)
         assert extent == 'well'
         q = [(find(path, want_h5),
-              op.join(path, subdir, antibody, readout))]
+              _dimspec(ncrmode, **param.__dict__),
+              op.join(path, subdir, antibody))]
 
-    for paths, basedir in q:
-        data, warnings = extractdata(paths, PARAM)
-        processed, rawheaders = process(data, PARAM)
+    for paths, param, basedir in q:
+        data, warnings = extractdata(paths, param)
+        processed, rawheaders = process(data, param)
         preamble = makepreamble(rawheaders, warnings)
-        mkdirp(basedir)
-        dump(basedir, transpose_map(dict(data=processed, preamble=preamble)))
+        dir_ = op.join(basedir, param.readout)
+        mkdirp(dir_)
+        dump(dir_, transpose_map(dict(data=processed, preamble=preamble)))
         
     return 0
 
