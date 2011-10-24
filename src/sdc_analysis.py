@@ -1,5 +1,4 @@
 import re
-from collections import defaultdict
 
 class Analysis(object):
     def process_rows(self, rows, index, pass_=0):
