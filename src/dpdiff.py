@@ -335,9 +335,12 @@ if __name__ == '__main__':
     def _getkyub(path):
         return Kyub(*datapflex.read_datapflex(path))
 
-    irdir = '/home/gfb2/IR'
-    dpdir = op.join(irdir, 'DATAPFLEX_111018T')
+#     irdir = '/home/gfb2/IR'
+#     dpdir = op.join(irdir, 'DATAPFLEX_111018T')
+    import sys
+    dpdir = sys.argv[1]
     outpath = op.join(dpdir, 'ALL.csv')
+
     ks = map(_getkyub,
              [p for p in [op.join(dpdir, '%s_%s.csv' % (op.basename(sp), z))
                           for sp in sorted(glob('scans/linkfarm/*'))
