@@ -2,7 +2,8 @@ import os
 from os.path import join as opjoin
 
 def walk(top, pre=None, post=None, carry=None,
-         prune=lambda x: False, onerror=None, followlinks=False):
+         prune=lambda x: False, onerror=None, followlinks=False,
+         sortkey=None):
 
     """Traverse a directory tree, executing pre-order and post-order
     callbacks.
@@ -89,25 +90,42 @@ def walk(top, pre=None, post=None, carry=None,
         else:
             nondirs.append(name)
 
-    dirs.sort()
-    nondirs.sort()
+    if sortkey:
+        ks = sortkey[0]
+        dirs.sort(key=ks[0])
+        nondirs.sort(key=ks[1])
+        sortkey = sortkey[1:]
+    else:
+        dirs.sort()
+        nondirs.sort()
 
     if pre:
         pre(top, dirs, nondirs, carry)
 
     for newtop in [opjoin(top, d) for d in dirs]:
         if followlinks or not os.path.islink(newtop):
-            walk(newtop, pre, post, carry, prune, onerror, followlinks)
+            walk(newtop, pre, post, carry, prune, onerror,
+                 followlinks, sortkey)
 
     if post:
         post(top, dirs, nondirs, carry)
 
-def find(root, wanted=None):
+def find(root, wanted=None, sortkey=None):
     if not os.path.isdir(root):
         raise ValueError('not a directory: %s' % root)
     for r, ds, fs in os.walk(root):
-        ds.sort()
-        fs.sort()
+
+        if sortkey:
+            ks = sortkey
+        else:
+            ks = (None, None)
+
+        for seq, sk in zip((ds, fs), ks):
+            if sk:
+                seq.sort(key=sk)
+            else:
+                seq.sort()
+
         for s in (ds, fs):
             for i in s:
                 if wanted is None or wanted(i, r, isdir=(s==ds)):
