@@ -269,11 +269,13 @@ def write_datapflex(path, treatment_columns, data_columns, info_columns=()):
     def ith_record(i):
         return sum([ith_subrecord(i, cs) for cs in all_colsets], ())
                     
-    def print_record(r):
-        print ','.join([unicode(c).encode('utf-8') for c in r])
+    def greekToEnglish(s, map_={u'\u03b1': u'alpha', u'\u03b3': u'gamma',
+                                u'\u03ba': u'kappa'}):
+        return u''.join([map_.get(c, c) for c in list(s)])
+                           
 
     def encode_record(r):
-        return [unicode(c).encode('utf-8') for c in r]
+        return [greekToEnglish(unicode(c)).encode('utf-8') for c in r]
 
     def print_table(fh, lineterminator='\r\n'):
         writer = csv.writer(fh, lineterminator=lineterminator)
@@ -344,13 +346,6 @@ def main(argv):
                 plate, wc = pwc
                 path1 = op.join(path0, plate)
 
-                headers = []
-                def skip_rows(row, _regex=re.compile(r'^\s*(?:#|--|$)'), save=headers):
-                    ret = _regex.search(row)
-                    if ret and not 'WARNING' in row:
-                        save.append(re.sub(r'^.*:\s*', '', row.strip()))
-                    return not ret
-
                 for antibody, target in rv:
                     if type(wc) == Control:
                         path2 = op.join(path1, '.DATA', antibody, str(wc))
@@ -363,9 +358,20 @@ def main(argv):
                         assert len(tmp) == 1
                         path3 = tmp[0]
 
+
+                    headers = []
+                    def skip_rows(row, _regex=re.compile(r'^\s*(?:#|--|$)'),
+                                  save=headers):
+                        ret = _regex.search(row)
+                        if ret and not 'WARNING' in row:
+                            save.append(re.sub(r'^.*:\s*', '', row.strip()))
+                        return not ret
+
                     with open(path3) as in_:
                         for record in csv.reader(ifilter(skip_rows, in_)):
-                            tgt = u'%s (ncr)' % (target,) if 'ncr' in headers[0] else unicode(target)
+                            tgt = (u'%s (ncr)' % (target,)
+                                   if 'ncr' in headers[0]
+                                   else unicode(target))
                             dhs.add(tgt)
                             mean_stdev = tuple(map(float.fromhex, record[:2]))
                             dcol.append(mean_stdev)
@@ -383,12 +389,21 @@ def main(argv):
         tmp = zip(*[r[0] for r in table])
         assert len(tmp) == len(treatment_columns)
         for tc, c in zip(treatment_columns, tmp): tc.extend(c)
+
+        assay = PARAM.assay
+
+        # prepend a cell_line column, with a constant value ########
+        kluge = Column('cell_line', [assay] * len(treatment_columns[0]))
+        treatment_columns = [kluge] + treatment_columns
+        del kluge
+        ############################################################
+
         data_columns = [MSColumn(n, i) for n, i in
                        zip(dcolnames, zip(*[r[1] for r in table]))]
 
         outdir = PARAM.outdir
         outpath = (None if outdir is None
-                   else op.join(outdir, '%s_%s.csv' % (PARAM.assay, gfck)))
+                   else op.join(outdir, '%s_%s.csv' % (assay, gfck)))
         write_datapflex(outpath, treatment_columns, data_columns)
 
     return 0

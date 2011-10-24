@@ -1,21 +1,53 @@
 # -*- coding: utf-8 -*-
+import os.path as op
 import re
 from collections import namedtuple
-from itertools import imap
+from itertools import imap, product
 import codecs
 import csv
 
-def is_valid_rc(rc):
-    return _is_valid_rc(rc)
+from find import find
+
+OrderedSet = list
+# TODO: implement OrderedSet.index
+# TODO: get rid of the optional argument kluge in is_valid_rc, etc.
+# from orderedset import OrderedSet
 
 
-def _is_valid_rc(rc,
-                 _re=re.compile(r'^[A-H](?:0[1-9]|1[0-2])$')):
-    try:
-        return bool(_re.search(rc))
-    except:
-        return False
-    
+CELL_LINE_ASSAY_NAMES = OrderedSet('''
+20100924_HCC1187 20100925_HCC1806 20100928_CAMA1 20101004_HCC1954
+20101005_AU565 20101006_HCC1569 20101007_BT20 20101008_HCC38
+20101012_MCF7 20101018_HCC70 20101021_RA_Rob 20101022_N_Rob
+20101025_HCC1419 20101122_HCC1937 20101202_SKBR3 20101206_MCF10A
+20101210_SKBR3 20101213_HCC1395 20101215_ZR751 20101216_HCC202
+20101221_HCC1428 20101222_MDAMB231 20110128_ZR7530 20110201_SKBR3
+20110210_MCF7 20110308_MDAMB175 20110310_HCC1500 20110311_MDAMB453
+20110317_MDAMB231 20110318_Hs578T 20110321_T47D 20110322_BT549
+20110324_MDAMB361 20110325_MDAMB157 20110330_UACC893 20110414_MCF10F
+20110415_MCF12A 20110418_BT474 20110420_UACC812 20110421_184B5
+20110421_MDAMB415 20110427_MDAMB436 20110502_BT-483 20110517_MDAMB134
+'''.strip().split())
+
+PLATE_NAMES = OrderedSet('GF1 GF2 GF3 GF4 CK1 CK2'.split())
+
+ROW_NAMES = OrderedSet('ABCDEFGH')
+COL_NAMES = OrderedSet(['%02d' % (i + 1) for i in range(12)])
+WELL_NAMES = OrderedSet([''.join(p) for p in product(ROW_NAMES, COL_NAMES)])
+FIELD_NAMES = OrderedSet('1234')
+COMPONENTS = [CELL_LINE_ASSAY_NAMES, PLATE_NAMES, WELL_NAMES,
+              FIELD_NAMES]
+
+def is_valid_rc(rc, WELL_NAMES=set(WELL_NAMES)):
+    return rc in WELL_NAMES
+
+def is_valid_platename(platename, PLATE_NAMES=set(PLATE_NAMES)):
+    return platename in PLATE_NAMES
+
+def is_valid_cell_line_assay(string, CELL_LINE_ASSAY_NAMES=set(CELL_LINE_ASSAY_NAMES)):
+    return string in CELL_LINE_ASSAY_NAMES
+
+def is_valid_fieldname(fieldname, FIELD_NAMES=set(FIELD_NAMES)):
+    return fieldname in FIELD_NAMES
 
 def rc2idx(rc):
     """
@@ -258,6 +290,126 @@ def _parse_antibody_string(antibody_string,
 
 def parse_antibody_string(antibody_string, encoding='utf-8'):
     return _parse_antibody_string(antibody_string, encoding)
+
+
+def rsplit(path):
+    if len(path) == 0:
+        return []
+    if path == '/':
+        return [path]
+    p, b = op.split(path)
+    return rsplit(p) + [b]
+
+
+def scrape_coords(path):
+    tests = [is_valid_cell_line_assay,
+             is_valid_platename,
+             is_valid_rc,
+             is_valid_fieldname,]
+
+#     screens = [lambda s: not (s is None or test(s))
+#                for test in tests]
+
+    n = len(tests)
+    parts = ([None] * n +
+             [op.splitext(p)[0] for p in rsplit(path)] +
+             [None] * n)
+    maxlen = 0
+    ret = ()
+    for i in range(len(parts) - n):
+    #for i in xrange(len(parts) - n):
+        pts = parts[i:i+n]
+#         nix = [s(p) for s, p in zip(screens, pts)]
+#         print i, pts, nix
+#         if any(s(p) for s, p in zip(screens, pts)):
+#             continue
+
+        matches = [1 if t(p) else 0
+                   for t, p in zip(tests, pts)]
+
+        score = sum(matches)
+
+        if score >= maxlen:
+            maxlen = score
+            ret = tuple(pts)
+
+        # print matches, score
+
+    if maxlen == 0:
+        raise ValueError('path "%s" has no ICBP45 coordinates' % path)
+
+    return ret
+
+
+def path_to_coords(path):
+    parts = [op.splitext(p)[0] for p in rsplit(path)]
+    for i in xrange(len(parts) - 3, 0, -1):
+        if (is_valid_fieldname(parts[i + 2]) and
+            is_valid_rc(parts[i + 1]) and
+            is_valid_platename(parts[i])):
+            return parts[i - 1:i + 3]
+    raise ValueError('"%s" is not a valid path' % path)
+
+
+def coords_to_field_number(coords, components=COMPONENTS):
+    iv = coords_to_index_vector(coords, components)
+    shape = map(len, components)
+    return index_vector_to_field_number(iv, shape)
+
+
+def coords_to_index_vector(coords, components):
+    assert len(coords) == len(components)
+    return [p.index(c) for p, c in zip(components, coords)]
+
+
+def index_vector_to_field_number(iv, shape):
+    n = len(iv)
+    assert n == len(shape)
+    if n == 0:
+        return 0
+    else:
+        return ((shape[-1] *
+                 index_vector_to_field_number(iv[:-1],
+                                              shape[:-1]))
+                + iv[-1])
+
+
+def _path_iter(path, test):
+    def wanted(basename, dirname, isdir):
+        return isdir and test(basename)
+    return find(path, wanted)
+
+def is_valid_rc(rc, WELL_NAMES=set(WELL_NAMES)):
+    return rc in WELL_NAMES
+
+def is_valid_platename(platename, PLATE_NAMES=set(PLATE_NAMES)):
+    return platename in PLATE_NAMES
+
+def is_valid_cell_line_assay(string, CELL_LINE_ASSAY_NAMES=set(CELL_LINE_ASSAY_NAMES)):
+    return string in CELL_LINE_ASSAY_NAMES
+
+def is_valid_fieldname(fieldname, FIELD_NAMES=set(FIELD_NAMES)):
+    return fieldname in FIELD_NAMES
+
+GLOBALS = globals()
+for root in 'rc platename cell_line_assay fieldname'.split():
+    testfunc = GLOBALS['is_valid_%s' % root]
+    def func(path, _test=testfunc):
+        return _path_iter(path, _test)
+    GLOBALS['%s_path_iter' % root] = func
+
+# def rc_path_iter(path):
+#     return _path_iter(path, is_valid_rc)
+
+# def platename_path_iter(path):
+#     return _path_iter(path, is_valid_platename)
+
+# def cell_line_assay_path_iter(path):
+#     return _path_iter(path, cell_line_assay_platename)
+
+# def fieldname_path_iter(path):
+#     return _path_iter(path, is_valid_fieldname)
+
 
 if __name__ == '__main__':
     import doctest
