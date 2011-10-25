@@ -647,11 +647,6 @@ class Control(object):
             else:
                 raise ValueError('unknown control region code: "%s"' % code)
 
-            # YAK: until we decide we need them, if ever, I'm
-            # disabling all implicit treatment values outside of the
-            # control's "zone" region
-            if code != 'z': continue
-
             for s in ss:
                 tvs.append((s, reg))
 
