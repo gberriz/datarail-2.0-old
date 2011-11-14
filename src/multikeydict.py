@@ -1,6 +1,8 @@
 from collections import defaultdict
 from copy import deepcopy
 
+from pdb import set_trace as ST
+
 class MultiKeyDict(defaultdict):
     '''
     Class to implement nested dictionaries of arbitrary depth.
@@ -45,40 +47,69 @@ class MultiKeyDict(defaultdict):
     >>> d.set((1, 2, 3, 4, 5, 6, 7), 8)
     '''
 
-    def __init__(self):
-        # self.maxdepth = maxdepth
-        super(MultiKeyDict, self).__init__(type(self))
+    def __init__(self, maxdepth=None, leafclass=None):
+        md = maxdepth
+        lc = leafclass
+        cls = type(self)
+
+        if md is None:
+            assert lc is None
+            t = cls
+        else:
+            if lc is None:
+                lc = dict
+            assert md > 0
+            t = lc if md == 1 else lambda: cls(maxdepth=md - 1, leafclass=lc)
+
+        super(MultiKeyDict, self).__init__(t)
+
+        self.maxdepth = md
+
+    def __getitem__(self, key):
+        md = self.maxdepth
+        if md is None or md > 1:
+            return super(MultiKeyDict, self).__getitem__(key)
+        else:
+            return dict.__getitem__(self, key)
+
 
     def has_key(self, *keys):
-        l = len(keys)
-        assert l
+        l = self._chkkeys(keys)
         yn = super(MultiKeyDict, self).has_key(keys[0])
         if l == 1 or not yn:
             return yn
         else:
-            v = super(MultiKeyDict, self).__getitem__(keys[0])
+            v = self.__getitem__(keys[0])
             return v.has_key(*keys[1:])
 
-    def get(self, keys):
+    def _chkkeys(self, keys):
         l = len(keys)
-        assert l
-        v = super(MultiKeyDict, self).__getitem__(keys[0])
-        if l == 1:
-            return v
-        else:
-            return v.get(keys[1:])
+        assert l and hasattr(keys, '__iter__')
+        md = self.maxdepth
+        if md is not None and l > md:
+            raise KeyError('%s (exceeds maxdepth=%d)' % (str(keys), md))
+        return l
+
+
+    def get(self, keys):
+        l = self._chkkeys(keys)
+        return self._get(keys, l)
+
+
+    def _get(self, keys, l):
+        #v = super(MultiKeyDict, self).__getitem__(keys[0])
+        v = self.__getitem__(keys[0])
+        return v if l == 1 else v._get(keys[1:], l - 1)
+
 
     _OK = object()
     def set(self, keys, val):
-        retval = None
-        error = None
-        if hasattr(keys, '__iter__') and len(keys):
-            try:
-                retval = self._set(val, keys[0], *keys[1:])
-            except Exception, e:
-                raise
-                # from traceback import traceback as tb
-                # error = str(e)
+        l = self._chkkeys(keys)
+        retval = error = None
+        try:
+            retval = self._set(l - 1, val, keys[0], *keys[1:])
+        except Exception, e:
+            error = str(e)
 
         if retval is not MultiKeyDict._OK:
             msg = 'invalid multikey'
@@ -89,33 +120,24 @@ class MultiKeyDict(defaultdict):
                         % ', '.join(map(repr, retval)))
             raise TypeError(msg)
 
-    def _set(self, val, key, *subkeys):
-        l = len(subkeys)
+    def _set(self, l, val, key, *subkeys):
         hk = self.has_key(key)
-        sc = super(MultiKeyDict, self)
         if hk or l > 0:
-            v = sc.__getitem__(key)
+            v = self.__getitem__(key)
             if hk and ((l == 0) == isinstance(v, MultiKeyDict)):
                 return (key,)
 
         if l == 0:
-            sc.__setitem__(key, val)
+            super(MultiKeyDict, self).__setitem__(key, val)
         else:
-            stat = v._set(val, subkeys[0], *subkeys[1:])
+            stat = v._set(l - 1, val, subkeys[0], *subkeys[1:])
             if stat is not MultiKeyDict._OK:
                 return (key,) + stat
 
         return MultiKeyDict._OK
 
-    def __setitem__(self, key, val):
-        try:
-            self.set((key,), val)
-        except TypeError, e:
-            raise TypeError(str(e))
-
     @staticmethod
     def __todict(value):
-        # return (value.todict() if isinstance(value, MultiKeyDict) else value)
         return (value.todict() if hasattr(value, 'todict') else value)
 
     def todict(self):
@@ -149,8 +171,7 @@ class MultiKeyDict(defaultdict):
         self.popmk(keys)
 
     def popmk(self, keys):
-        l = len(keys)
-        assert l and hasattr(keys, '__iter__')
+        l = self._chkkeys(keys)
         try:
             return self._pop(keys, l)
         except KeyError:
@@ -162,7 +183,7 @@ class MultiKeyDict(defaultdict):
         if not super(MultiKeyDict, self).has_key(k):
             raise KeyError
         if l > 1:
-            d = super(MultiKeyDict, self).__getitem__(k)
+            d = self.__getitem__(k)
             if not isinstance(d, MultiKeyDict):
                 raise KeyError
             ret = d._pop(keys[1:], l - 1)
