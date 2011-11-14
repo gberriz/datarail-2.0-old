@@ -147,26 +147,6 @@ class MultiKeyDict(defaultdict):
 
     def delete(self, keys):
         self.popmk(keys)
-    #     l = len(keys)
-    #     assert l and hasattr(keys, '__iter__')
-    #     try:
-    #         self._del(keys, l)
-    #     except KeyError:
-    #         raise KeyError(str(keys))
-
-    # def _del(self, keys, l):
-    #     k = keys[0]
-    #     if not super(MultiKeyDict, self).has_key(k):
-    #         raise KeyError
-    #     if l > 1:
-    #         d = super(MultiKeyDict, self).__getitem__(k)
-    #         if not isinstance(d, MultiKeyDict):
-    #             raise KeyError
-    #         d._del(keys[1:], l - 1)
-    #         if d.keys():
-    #             return
-    #     self.pop(k)
-
 
     def popmk(self, keys):
         l = len(keys)
