@@ -49,9 +49,12 @@ class Hdf5:
     data indices to the real indices in the hdf cube.
 
     '''
-    def __init__(self, projectname):
+
+    EXT = '.hdf5'
+
+    def __init__(self, projectname, ext=EXT):
         self.name = projectname
-        self.filename = projectname + '.hdf5'
+        self.filename = projectname + ext
         logging.basicConfig( format='%(asctime)s %(levelname)s\
                 %(message)s', level=logging.ERROR)
         logging.info('Try using an existing: %s' % self.filename)
@@ -74,8 +77,7 @@ class Hdf5:
     
     #def add_sdcube(self, mapping, name=None, filename=None):
     def add_sdcube(self, mapping, name=None):
-        ''' Add an sd cube to the project. Return the created name and the
-        filename.
+        ''' Add an sd cube to the project. Return the created cube's name.
 
         '''
         with h5py.File(self.filename, 'r') as h5_file:
@@ -101,6 +103,12 @@ class Hdf5:
             sdcubes = load_attribute(h5_file, 'sdcubes')
             sdcubes[name] = filename
             store_attribute(h5_file, 'sdcubes', sdcubes)
+
+        # FIXME: it's better for this method to return the added
+        # subcube, rather than the name (which, it not already known
+        # to the caller, can be accessed through the returned cube's
+        # "name" attribute)
+
         return name
 
     def delete_cube(self, group_name):
