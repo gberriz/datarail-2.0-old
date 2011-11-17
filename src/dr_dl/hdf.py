@@ -623,7 +623,7 @@ class SdCube(object):
             logging.error('Dimension must not be empty')
             raise ValueError('Dimension must not be empty')
         group_mapping = self.mapping
-        if not dimensions.keys() == self.mapping.keys():
+        if not sorted(dimensions.keys()) == sorted(self.mapping.keys()):
             logging.error('The dataset must have the same dimension labels as'
                     ' the old dataset.')
             raise ValueError('The dataset must have the same dimension labels'
