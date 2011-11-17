@@ -137,8 +137,16 @@ class OrderedSet(collections.MutableSet):
         return ret
 
 
-    __or__ = union
+    def __or__(self, other):
+        return self.union(other)
 
+
+    def __ror__(self, other):
+        return OrderedSet(other).union(self)
+
+    __add__ = __or__
+
+    __radd__ = __ror__
 
     def update(self, *others):
         for other in others:
@@ -195,7 +203,9 @@ class OrderedSet(collections.MutableSet):
     def __del__(self):
         self.clear()                    # remove circular references
 
-            
+
+
+
 if __name__ == '__main__':
     print(OrderedSet('abracadaba'))
     print(OrderedSet('simsalabim'))
