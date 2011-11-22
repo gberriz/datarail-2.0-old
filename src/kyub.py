@@ -14,6 +14,9 @@ def comm(a, b):
 class Kyub(object):
     def __init__(self, factors, readouts, table):
         nfactors = len(factors)
+        nreadouts = len(readouts)
+        assert len(set(factors + readouts)) == nfactors + nreadouts
+
         def valid_coords(c):
             return (hasattr(c, '__iter__') and
                     hasattr(c, '__len__') and
@@ -23,11 +26,11 @@ class Kyub(object):
 
         tmp = [tuple(sorted(v.keys())) for v in table.values()]
         assert len(set(tmp + [tuple(sorted(readouts))])) == 1
+        del tmp
 
         self.factors = factors
         self.readouts = readouts
         self.table = table
-
 
     @property
     @memoized
