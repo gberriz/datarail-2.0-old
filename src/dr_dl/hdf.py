@@ -77,9 +77,9 @@ class Hdf5:
     
     #def add_sdcube(self, mapping, name=None, filename=None):
     def add_sdcube(self, mapping, name=None):
-        ''' Add an sd cube to the project. Return the created cube's name.
+        """ Add an sd cube to the project. Return the created cube's name.
 
-        '''
+        """
         with h5py.File(self.filename, 'r') as h5_file:
             sdcubes = load_attribute(h5_file, 'sdcubes')
             if name in sdcubes:
