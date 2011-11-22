@@ -120,12 +120,24 @@ def rc2idx(rc):
     """
     return _rc2idx(rc)
 
+def _checkrc(ridx, cidx, rowsize, colsize):
+    if not (-1 < ridx < colsize and -1 < cidx < rowsize):
+        raise ValueError
+
+# lambda r, c, rr, cc: r + c * cc
+def __default_rc2idx(ridx, cidx, IGNORED, colsize):
+    return ridx + cidx * colsize
+
+
+def _default_rc2idx(ridx, cidx, rowsize=12, colsize=8):
+    _checkrc(ridx, cidx, rowsize, colsize)
+    return __default_rc2idx(ridx, cidx, _rowsize, _colsize)
 
 def _rc2idx(rc,
             _base=ord('A'),
             _rowsize=12,
             _colsize=8,
-            _convert=lambda r, c, rr, cc: r + c * cc):
+            _convert=__default_rc2idx):
 
     if isinstance(rc, StringTypes):
         c0 = rc[1:]
@@ -133,15 +145,15 @@ def _rc2idx(rc,
         c0 = rc[1]
     else:
         raise TypeError('argument must be a string '
-                        'or a sequence of length 2')
+                        'or a sequence of length 2 '
+                        '(got "%r")' % (rc,))
     try:
         try:
             ridx = ord(rc[0].upper()) - _base
         except (IndexError, TypeError):
             raise ValueError
         cidx = int(c0) - 1
-        if not (-1 < ridx < _colsize and -1 < cidx < _rowsize):
-            raise ValueError
+        _checkrc(ridx, cidx, _rowsize, _colsize)
         return _convert(ridx, cidx, _rowsize, _colsize)
     except ValueError:
         raise ValueError('invalid rc: %r' % (rc,))
@@ -212,15 +224,26 @@ def plate2idx(platename):
     return _plate2idx(platename)
 
 
+def parse_platename(platename):
+    return platename[:2], platename[2:]
+
+
+def get_subassay(platename):
+    return parse_platename(platename)[0]
+
+
 def _plate2idx(platename):
     try:
-        pfx, sfx = platename[:2], platename[2:]
+
+        pfx, sfx = parse_platename(platename)
+
         if pfx == 'GF':
             i = -1
         elif pfx == 'CK':
             i = 3
         else:
             raise ValueError
+
         idx = int(sfx) + i
         assert platename == idx2plate(idx)
         return idx
