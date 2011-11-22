@@ -13,6 +13,16 @@ def comm(a, b):
 
 class Kyub(object):
     def __init__(self, factors, readouts, table):
+
+        # 1. factors and readouts are iterables of unique strings
+        #    (i.e. no string may occur twice in the iterable obtained
+        #    from concatenating factors and readouts);
+        # 2. table is a dictionary of dictionaries;
+        # 3. the keys of table are tuples of a common cardinality,
+        #    equal to the cardinality of factors;
+        # 4. the sets of keys of the values of table are all equal to
+        #    the set of elements in readouts
+
         nfactors = len(factors)
         nreadouts = len(readouts)
         assert len(set(factors + readouts)) == nfactors + nreadouts
