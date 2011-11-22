@@ -18,12 +18,12 @@ del __param
 __d = PARAM.__dict__
 __d.update(
     {
+      'encoding': 'utf-8',
+      'sep': (',\t,', ',', '|', '^'),
       'path_to_linkfarm': '/home/gfb2/IR/scans/linkfarm',
       'sdc_subdir_pat': '?.sdc',
       'sdc_basename': 'Data.h5',
       'path_comp_attribs': 'assay plate well'.split(),
-      'encoding': 'utf-8',
-      'sep': (',\t,', ',', '|', '^'),
       'wanted_feature_types': 'Whole Nucleus Cyto'.split(),
       'data_coords': namedtuple('DataCoords', 'mean stddev'),
       'antibody_class': namedtuple('Antibody', 'target species wavelength'),
