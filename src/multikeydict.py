@@ -119,6 +119,8 @@ class MultiKeyDict(defaultdict):
         try:
             retval = self._set(l - 1, val, keys[0], *keys[1:])
         except Exception, e:
+            import traceback as tb
+            tb.print_exc()
             error = str(e)
 
         if retval is not MultiKeyDict._OK:
