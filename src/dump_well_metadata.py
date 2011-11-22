@@ -483,6 +483,8 @@ class Plate(object):
                 r, c = kl.to_rownum(rc[0]), kl.to_colnum(rc[1])
             else:
                 r, c = rc
+            # this should really be:
+            # return icbp45_utils._default_rc2idx(r, c, Plate.NCOLS, Plate.NROWS)
             return (Plate.NROWS * c) + r
         except Exception, e:
             print e
