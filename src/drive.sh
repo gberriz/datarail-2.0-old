@@ -16,10 +16,10 @@ CO="${SRC}/collect_dpf.py"
 for z (GF CK) {
   done=
   for k (1 2 3 4) {
-    [[ "$z" == CK && (( $k > 2 )) ]] && continue
+    [ "$z" = CK -a "$k" -gt 2 ] && continue
     ppth="$ASSAYDIR/$z$k"
-    [[ -d "$ppth" ]] || continue
-    [[ -z "$done" ]] && done=$ppth || done=$done:$ppth
+    [ -d "$ppth" ] || continue
+    [ -z "$done" ] && done=$ppth || done=$done:$ppth
     (set -x; $PYTHON $MD $ppth;)
     for w (530 685) {
       (set -x; $PYTHON $DD $ppth $w)
@@ -31,7 +31,7 @@ for z (GF CK) {
       (set -x; $PYTHON $DD $ppth $w)
     }
   }
-  [[ -z $done ]] && continue
+  [ -z "$done" ] && continue
   zpth="$ASSAYDIR/$z"
   (set -x; $PYTHON $CO $zpth $OUTDIR)
 }
