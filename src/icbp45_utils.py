@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os.path as op
 import re
+from types import StringTypes
 from collections import namedtuple
 from itertools import imap, product
 import codecs
@@ -126,7 +127,7 @@ def _rc2idx(rc,
             _colsize=8,
             _convert=lambda r, c, rr, cc: r + c * cc):
 
-    if isinstance(rc, str):
+    if isinstance(rc, StringTypes):
         c0 = rc[1:]
     elif hasattr(rc, '__iter__') and len(rc) == 2:
         c0 = rc[1]
