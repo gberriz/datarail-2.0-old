@@ -20,37 +20,16 @@ __d = PARAM.__dict__
 __d.update(
     {
       'encoding': 'utf-8',
-
       'sep': (',\t,', ',', '|', '^'),
-
-      'path_to_linkfarm': '/home/gfb2/IR/scans/linkfarm',
-      'sdc_subdir_pat': '?.sdc',
-      'hdf5_ext': '.h5',
-      'sdc_basename': 'Data',
-      'path_comp_attribs': 'assay plate well'.split(),
-      'wanted_feature_types': 'Whole Nucleus Cyto'.split(),
-      'data_coords': namedtuple('DataCoords', 'mean stddev'),
-      'antibody_class': namedtuple('Antibody', 'target species wavelength'),
-      'require_nucleus_mean_to_cyto_mean_ratio': set((u'NF-κB',)),
-      'extra_dim': {'stat': ('mean', 'stddev')},
     })
-
-
-__d['wanted_templates'] = map(lambda s: '%s_w%%s (Mean)' % s,
-                              PARAM.wanted_feature_types)
 del __d
-
 
 def _parseargs(argv):
     path_to_expmap = argv[1]
-    assay = None
-    subassay = None
-    output_basename = None
 
     d = dict()
     l = locals()
-    params = ('path_to_expmap assay subassay '
-              'output_basename ')
+    params = ('path_to_expmap')
     for p in params.split():
         d[p] = l[p]
     _updateparams(d)
