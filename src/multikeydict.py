@@ -47,10 +47,13 @@ class MultiKeyDict(defaultdict):
     >>> d.set((1, 2, 3, 4, 5, 6, 7), 8)
     '''
 
-    def __init__(self, maxdepth=None, leafclass=None):
+
+    def __init__(self, maxdepth=None, leafclass=None,
+                 noclobber=False):
         md = maxdepth
         lc = leafclass
         cls = type(self)
+        nc = bool(noclobber)
 
         if md is None:
             assert lc is None
@@ -59,11 +62,13 @@ class MultiKeyDict(defaultdict):
             if lc is None:
                 lc = dict
             assert md > 0
-            t = lc if md == 1 else lambda: cls(maxdepth=md - 1, leafclass=lc)
+            t = lc if md == 1 else lambda: cls(maxdepth=md - 1, leafclass=lc,
+                                               noclobber=nc)
 
         super(MultiKeyDict, self).__init__(t)
 
         self.maxdepth = md
+        self.noclobber = nc
 
     def __getitem__(self, key):
         md = self.maxdepth
@@ -128,7 +133,11 @@ class MultiKeyDict(defaultdict):
                 return (key,)
 
         if l == 0:
-            super(MultiKeyDict, self).__setitem__(key, val)
+            if not (hk and v == val):
+                if self.noclobber and hk:
+                    return (key,)
+                #assert not (self.noclobber and hk), unicode(key).encode('utf-8')
+                super(MultiKeyDict, self).__setitem__(key, val)
         else:
             stat = v._set(l - 1, val, subkeys[0], *subkeys[1:])
             if stat is not MultiKeyDict._OK:
