@@ -200,3 +200,30 @@ class MultiKeyDict(defaultdict):
                 self.pop(k)
             return ret
         return self.pop(k)
+
+
+    def iteritemsmk(self):
+        for k, v in self.iteritems():
+            if isinstance(v, MultiKeyDict):
+                for kk, vv in v.iteritemsmk():
+                    yield (k,) + kk, vv
+            else:
+                yield (k,), v
+
+
+    def itervaluesmk(self):
+        for v in self.itervalues():
+            if isinstance(v, MultiKeyDict):
+                for vv in v.itervaluesmk():
+                    yield vv
+            else:
+                yield v
+
+
+    def iterkeysmk(self):
+        for k, v in self.iteritems():
+            if isinstance(v, MultiKeyDict):
+                for kk in v.iterkeysmk():
+                    yield (k,) + kk
+            else:
+                yield (k,)
