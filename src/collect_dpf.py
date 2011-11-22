@@ -289,7 +289,6 @@ def write_datapflex(path, treatment_columns, data_columns, info_columns=()):
             print_table(outfh)
             
 
-    
 def main(argv):
     _parseargs(argv)
     dname, gfck = op.split(PARAM.path)
@@ -332,6 +331,9 @@ def main(argv):
         for k, v in layout.all_tvals().items():
             for rvals, wells in v.items():
                 tvals[k][rvals] = (plate, wells)
+
+    if mode == 'c':
+        return 0
 
     def skip_rows(row, _regex=re.compile(r'^\s*(?:#|--|$)')):
         return not _regex.search(row)
