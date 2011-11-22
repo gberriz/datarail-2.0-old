@@ -49,6 +49,7 @@ class MultiKeyDict(defaultdict):
     >>> d.set((1, 2, 3, 4, 5, 6, 7), 8)
     '''
 
+    NIL = object()
 
     def __init__(self, maxdepth=None, leafclass=None,
                  noclobber=False):
@@ -218,11 +219,13 @@ class MultiKeyDict(defaultdict):
 
     def iteritemsmk(self):
         for k, v in self.iteritems():
+            # ck = (k,)
+            ck = () if k == self.NIL else (k,)
             if isinstance(v, MultiKeyDict):
                 for kk, vv in v.iteritemsmk():
-                    yield (k,) + kk, vv
+                    yield ck + kk, vv
             else:
-                yield (k,), v
+                yield ck, v
 
 
     def itervaluesmk(self):
@@ -236,8 +239,10 @@ class MultiKeyDict(defaultdict):
 
     def iterkeysmk(self):
         for k, v in self.iteritems():
+            # ck = (k,)
+            ck = () if k == self.NIL else (k,)
             if isinstance(v, MultiKeyDict):
                 for kk in v.iterkeysmk():
-                    yield (k,) + kk
+                    yield ck + kk
             else:
-                yield (k,)
+                yield ck
