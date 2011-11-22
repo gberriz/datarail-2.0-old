@@ -1,6 +1,8 @@
 from collections import defaultdict
 from copy import deepcopy
 
+from orderedset import OrderedSet
+
 from pdb import set_trace as ST
 
 class MultiKeyDict(defaultdict):
@@ -69,6 +71,8 @@ class MultiKeyDict(defaultdict):
 
         self.maxdepth = md
         self.noclobber = nc
+        self._keyorder = OrderedSet()
+        #self._nextval = 0
 
     def __getitem__(self, key):
         md = self.maxdepth
@@ -143,6 +147,9 @@ class MultiKeyDict(defaultdict):
             if stat is not MultiKeyDict._OK:
                 return (key,) + stat
 
+        if not hk:
+            self._keyorder.add(key)
+
         return MultiKeyDict._OK
 
     @staticmethod
@@ -187,6 +194,11 @@ class MultiKeyDict(defaultdict):
             raise KeyError(str(keys))
 
 
+    def __pop(self, key):
+        self._keyorder.pop(key)
+        return self.pop(key)
+
+
     def _pop(self, keys, l):
         k = keys[0]
         if not super(MultiKeyDict, self).has_key(k):
@@ -195,11 +207,13 @@ class MultiKeyDict(defaultdict):
             d = self.__getitem__(k)
             if not isinstance(d, MultiKeyDict):
                 raise KeyError
+
             ret = d._pop(keys[1:], l - 1)
             if not d.keys():
-                self.pop(k)
+                self.__pop(k)
             return ret
-        return self.pop(k)
+
+        return self.__pop(k)
 
 
     def iteritemsmk(self):
