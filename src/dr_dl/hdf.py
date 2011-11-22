@@ -390,29 +390,29 @@ class Hdf5:
                 not func.output_cube_names:
             raise ValueError('name, input_dsets and output_dsets must not be'
                     'empty')
-        with h5py.File(self.filename,'a') as hdf5_file:
-            functions = pickle.loads(str(hdf5_file.attrs['functions']))
+        with h5py.File(self.filename,'a') as h5_file:
+            functions = pickle.loads(str(h5_file.attrs['functions']))
             functions.append(func)
-            hdf5_file.attrs['functions'] = pickle.dumps(functions)
+            h5_file.attrs['functions'] = pickle.dumps(functions)
 
     def del_function(self, function):
         ''' Remove a function <-> cube mapping from the project.
 
         '''
-        with h5py.File(self.filename,'a') as hdf5_file:
-            functions = pickle.loads(str(hdf5_file.attrs['functions']))
+        with h5py.File(self.filename,'a') as h5_file:
+            functions = pickle.loads(str(h5_file.attrs['functions']))
             # can't test for object equality so iterate over all functions
             for func in functions:
                 if str(func) == str(function):
                     functions.remove(func)
-            hdf5_file.attrs['functions'] = pickle.dumps(functions)
+            h5_file.attrs['functions'] = pickle.dumps(functions)
 
     def get_functions(self):
         ''' Returns all function <-> cube mappings from the project
 
         '''
-        with h5py.File(self.filename, 'r') as hdf5_file:
-            return pickle.loads(str(hdf5_file.attrs['functions']))
+        with h5py.File(self.filename, 'r') as h5_file:
+            return pickle.loads(str(h5_file.attrs['functions']))
 
     def execute_function(self, func):
         ''' Executes a function and set the output dataset status to dirty.
@@ -438,25 +438,25 @@ class Hdf5:
 
         '''
         dirty_funcs = []
-        with h5py.File(self.filename, 'r') as hdf5_file:
+        with h5py.File(self.filename, 'r') as h5_file:
             logging.info('Collecting all functions containing dirty datasets')
             for func in self.get_functions():
                 for dset in func.input_cube_names:
-                    if hdf5_file[dset].attrs['dirty']:
+                    if h5_file[dset].attrs['dirty']:
                         dirty_funcs.append(func)
         for func in set(dirty_funcs):
             logging.info('Execute all functions with dirty datasets')
             self.execute_function(func)
-        with h5py.File(self.filename, 'a') as hdf5_file:
+        with h5py.File(self.filename, 'a') as h5_file:
             logging.info('Remove the dirty state from alle datasets')
             for func in dirty_funcs:
                 for dset in func.input_cube_names:
-                    hdf5_file[dset].attrs['dirty'] = False
-                sdcubes = load_attribute(hdf5_file, 'sdcubes')
+                    h5_file[dset].attrs['dirty'] = False
+                sdcubes = load_attribute(h5_file, 'sdcubes')
                 for dset in func.output_cube_names:
                     sdcubes[dset] = self.filename
-                    hdf5_file[dset].attrs['dirty'] = False
-                store_attribute(hdf5_file, 'sdcubes', sdcubes)
+                    h5_file[dset].attrs['dirty'] = False
+                store_attribute(h5_file, 'sdcubes', sdcubes)
 
 if __name__ == '__main__':
     '''from numpy import random, arange
@@ -767,12 +767,12 @@ class SdCube(object):
         return first_index_labels
 
     def get_data_and_indices(self, items={}):
-        with h5py.File(self.filename,'r') as hdf5_file:
+        with h5py.File(self.filename,'r') as h5_file:
             data = []
             inds = []
             first_inds = []
 
-            grp = hdf5_file[self.name]
+            grp = h5_file[self.name]
             #grp_map = self.get_mapping(grp)
             for dataset in grp.values():
                 shape = dataset.shape
