@@ -16,6 +16,7 @@ del __param
 __d = PARAM.__dict__
 __d.update(
     {
+      'debug': False,
       'encoding': 'utf-8',
       'sep': (',\t,', ',', '|', '^'),
     })
@@ -85,7 +86,6 @@ def main(argv):
         print >> sys.stderr, 'warning: %s exists' % outpath
 
     global KeyCoords, ValCoords # globalized to enable pickling
-
     with open(PARAM.path_to_expmap) as fh:
         KeyCoords, ValCoords = [namedtuple(n, c)
                                 for n, c in zip(('KeyCoords', 'ValCoords'),
@@ -98,6 +98,7 @@ def main(argv):
 
         cubes = mkd(2, Cube)
 
+        debug = PARAM.debug
         count = 0
         for line in fh:
             key, val = [clas(*tpl) for clas, tpl in
@@ -105,7 +106,8 @@ def main(argv):
             subassay = get_subassay(val)
             cubes.get((val.assay, subassay)).set(key, val)
 
-            continue
+            if not debug:
+                continue
             count += 1
             if count >= 10:
                 break
