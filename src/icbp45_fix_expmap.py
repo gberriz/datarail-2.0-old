@@ -1,16 +1,7 @@
 # -*- coding: utf-8 -*-
-import os.path as op
 from collections import namedtuple
-from glob import glob
-import numpy as np
-import re
 
-from memoized import memoized
-from sdc_extract import _extract_wells_data
 from multikeydict import MultiKeyDict as mkd
-import icbp45_utils
-
-from pdb import set_trace as ST
 
 class __param(object): pass
 PARAM = __param()
