@@ -69,11 +69,6 @@ def parse_line(line, _sep=PARAM.sep[0]):
     return tuple(map(parse_segment, line.strip().split(_sep)))
 
 
-def output_form(x):
-    s = x.hex() if hasattr(x, 'hex') else x
-    return unicode(s)
-
-
 def get_subassay(subrecord):
     return icbp45_utils.get_subassay(subrecord.plate)
 
