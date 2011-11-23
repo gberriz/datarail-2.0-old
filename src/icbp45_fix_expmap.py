@@ -93,7 +93,6 @@ def main(argv):
         def _delete_field(tuple_, _i=ValCoords._fields.index('field')):
             return tuple_[:_i] + tuple_[_i + 1:]
 
-        cube = mkd(len(KeyCoords._fields), noclobber=True)
         control_conc = mkd(len(_reduced_kv(KeyCoords._fields,
                                            ValCoords._fields)), noclobber=True)
 
