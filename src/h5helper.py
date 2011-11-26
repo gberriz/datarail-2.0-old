@@ -4,7 +4,7 @@ import os
 import errno
 import numpy as np
 from numpy import arange, array
-import fnctl
+import fcntl
 
 import h5py
 
@@ -52,7 +52,7 @@ class Hdf5File(h5py.File):
 
 
     def _lock(self):
-        from fcntl import flock LOCK_EX LOCK_NB
+        from fcntl import flock, LOCK_EX, LOCK_NB
         try:
             flock(LOCK_EX|LOCK_NB)
         except IOError, e:
@@ -81,6 +81,17 @@ def rm(path):
     except OSError, e:
         if e.errno != errno.ENOENT:
             raise
+
+
+def ishdf5(path):
+    try:
+        with h5py.File(path, 'r'):
+            return True
+    except IOError, e:
+        if str(e).lower().startswith('unable to open file'):
+            return False
+        raise
+
 
 def createh5h(bn, ext='.h5'):
     fn = bn + ext
