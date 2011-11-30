@@ -83,7 +83,7 @@ def regroup(div, sz, group):
     j = Coords._fields.index(div)
     newgroup = mkd(sz, lambda: defaultdict(list))
     # first = True
-    for cc, krs in group.iteritemsmk():
+    for c, krs in group.iteritemsmk():
         # c = cc[1:] if cc[0] == mkd.NIL else cc
         # c = cc[1:] if (len(cc) and cc[0] == mkd.NIL) else cc
         sigs = set()
@@ -122,9 +122,9 @@ rg = regroup0 if ALT else regroup
 for i, div in enumerate('assay plate well field'.split()):
     lookup[div], grp = rg(div, i + 1, grp)
 
-for cc, krs in grp.iteritemsmk():
-    ST()
-    pass
+# for cc, krs in grp.iteritemsmk():
+#     ST()
+#     pass
 
 print lookup['assay']
 print lookup['plate']
