@@ -185,23 +185,9 @@ def main(argv):
         KeyCoords, ValCoords = [namedtuple(n, c)
                                 for n, c in zip(('KeyCoords', 'ValCoords'),
                                                 parse_line(fh.next()))]
-
-        _ii = set([KeyCoords._fields.index('ligand_name'),
-                   KeyCoords._fields.index('ligand_concentration')])
-        _is = [i for i in range(len(KeyCoords._fields)) if i not in _ii]
-        _j = ValCoords._fields.index('plate')
-        _k = ValCoords._fields.index('well')
-        del _ii
-        def _reduced_kv(key, val):
-            return tuple([key[i] for i in _is] + [val[_j], val[_k][1:]])
-
-        def _delete_field(tuple_, _i=ValCoords._fields.index('field')):
-            return tuple_[:_i] + tuple_[_i + 1:]
+        assert 'field' not in ValCoords._fields
 
         cube = mkd(len(KeyCoords._fields), noclobber=True)
-        control_conc = mkd(len(_reduced_kv(KeyCoords._fields,
-                                           ValCoords._fields)), noclobber=True)
-        already_processed = set()
         for line in fh:
             key, val = [clas(*tpl) for clas, tpl in
                         zip((KeyCoords, ValCoords),
@@ -209,19 +195,6 @@ def main(argv):
 
             if skip(key, val):
                 continue
-
-            idx = _delete_field(val)
-            if idx in already_processed:
-                continue
-            already_processed.add(idx)
-
-            rk = _reduced_kv(key, val)
-
-            if key.ligand_name == 'CTRL':
-                key = key._replace(ligand_concentration=control_conc[rk])
-            else:
-                control_conc[rk] = key.ligand_concentration
-            del rk
 
             data_path = get_data_path(val)
             sdc_paths = get_sdc_paths(data_path)
