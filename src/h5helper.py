@@ -34,11 +34,6 @@ class Hdf5File(h5py.File):
                 except:
                     pass
 
-    import atexit
-    atexit.register(shutdown)
-    del atexit
-
-
     def __init__(self, path, mode='r+', **kwargs):
         self._mode = mode
         super(Hdf5File, self).__init__(path, mode, **kwargs)
@@ -73,6 +68,11 @@ class Hdf5File(h5py.File):
         id_ = id(self)
         if id_ in Hdf5File.REGISTRY:
             del Hdf5File.REGISTRY[id_]
+
+
+import atexit
+atexit.register(Hdf5File.shutdown)
+del atexit
 
 
 def rm(path):
