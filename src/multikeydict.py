@@ -51,21 +51,21 @@ class MultiKeyDict(defaultdict):
 
     NIL = object()
 
-    def __init__(self, maxdepth=None, leafclass=None,
+    def __init__(self, maxdepth=None, leaffactory=None,
                  noclobber=False):
         md = maxdepth
-        lc = leafclass
+        lf = leaffactory
         cls = type(self)
         nc = bool(noclobber)
 
         if md is None:
-            assert lc is None
+            assert lf is None
             t = cls
         else:
-            if lc is None:
-                lc = dict
+            if lf is None:
+                lf = dict
             assert md > 0
-            t = lc if md == 1 else lambda: cls(maxdepth=md - 1, leafclass=lc,
+            t = lf if md == 1 else lambda: cls(maxdepth=md - 1, leaffactory=lf,
                                                noclobber=nc)
 
         super(MultiKeyDict, self).__init__(t)
