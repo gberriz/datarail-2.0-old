@@ -216,7 +216,7 @@ def main(argv):
             already_processed.add(idx)
 
             rk = _reduced_kv(key, val)
-            # print_record((key, rk, val))
+
             if key.ligand_name == 'CTRL':
                 key = key._replace(ligand_concentration=control_conc[rk])
             else:
