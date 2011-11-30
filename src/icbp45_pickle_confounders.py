@@ -73,6 +73,28 @@ def get_subassay(subrecord):
     return icbp45_utils.get_subassay(subrecord.plate)
 
 
+class IdSeq(mkd):
+    class __ctr(object):
+        def __init__(self, start=0):
+            self._next = start
+
+
+        def __call__(self):
+            ret = self._next
+            self._next += 1
+            return ret
+
+
+    def __init__(self, _factory_factory=__ctr):
+        mkd.__init__(self, maxdepth=1, leaffactory=_factory_factory())
+        
+
+def get_repno(key, val, _lookup=mkd(1, IdSeq)):
+    # NOTE: returns a singleton tuple (in the future, this repno
+    # parameter may be a k-tuple for some k > 1)
+    return (_lookup.get((key.cell_line, val.assay)),)
+
+
 def main(argv):
     _parseargs(argv)
     outpath = PARAM.path_to_pickle
@@ -86,12 +108,15 @@ def main(argv):
                                 for n, c in zip(('KeyCoords', 'ValCoords'),
                                                 parse_line(fh.next()))]
 
+        OutputKeyCoords = namedtuple('OutputKeyCoords',
+                                     KeyCoords._fields + ('repno',))
+
         class Cube(mkd):
             def __init__(self, *args, **kwargs):
-                super(Cube, self).__init__(len(KeyCoords._fields),
-                                           noclobber=True)
+                maxd = kwargs.get('maxdepth', len(OutputKeyCoords._fields))
+                super(Cube, self).__init__(maxdepth=maxd, noclobber=True)
 
-        cubes = mkd(2, Cube)
+        cubes = mkd(1, Cube)
 
         debug = PARAM.debug
         count = 0
@@ -99,14 +124,15 @@ def main(argv):
             key, val = [clas(*tpl) for clas, tpl in
                         zip((KeyCoords, ValCoords), parse_line(line))]
             subassay = get_subassay(val)
-            cubes.get((val.assay, subassay)).set(key, val)
+            repno = get_repno(key, val)
+            newkey = OutputKeyCoords(*(key + (repno,)))
+            cubes.get((subassay,)).set(newkey, val)
 
             if not debug:
                 continue
             count += 1
             if count >= 10:
                 break
-
 
     with open(outpath, 'w') as fh:
         pickle.dump(cubes.todict(), fh)
