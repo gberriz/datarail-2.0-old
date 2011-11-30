@@ -210,6 +210,12 @@ def _idx2plate(idx,
         raise TypeError('invalid index: %d' % idx)
 
 
+def assay2cellline(assay):
+    if not is_valid_cell_line_assay(assay):
+        raise TypeError('invalid assay name: "%s"' % assay)
+    return assay.split('_', 1)[1]
+
+
 def plate2idx(platename):
     """
     Convert a plate name to a plate index.
