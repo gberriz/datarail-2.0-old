@@ -102,7 +102,7 @@ def main(argv):
         import sys
         print >> sys.stderr, 'warning: %s exists' % outpath
 
-    global KeyCoords, ValCoords # globalized to enable pickling
+    global ValCoords, PickledCubes # globalized to enable pickling
     with open(PARAM.path_to_expmap) as fh:
         KeyCoords, ValCoords = [namedtuple(n, c)
                                 for n, c in zip(('KeyCoords', 'ValCoords'),
@@ -134,8 +134,11 @@ def main(argv):
             if count >= 10:
                 break
 
+    PickledCubes = namedtuple('PickledCubes', 'dimensions cubes')
+    pc = PickledCubes(OutputKeyCoords._fields, cubes.todict())
     with open(outpath, 'w') as fh:
-        pickle.dump(cubes.todict(), fh)
+        pickle.dump(pc, fh)
+
 
 if __name__ == '__main__':
     import sys
