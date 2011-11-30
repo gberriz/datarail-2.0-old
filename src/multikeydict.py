@@ -4,7 +4,7 @@ from copy import deepcopy
 from orderedset import OrderedSet
 
 from pdb import set_trace as ST
-
+# INDENT = 0
 class MultiKeyDict(defaultdict):
     '''
     Class to implement nested dictionaries of arbitrary depth.
@@ -61,12 +61,39 @@ class MultiKeyDict(defaultdict):
         if md is None:
             assert lf is None
             t = cls
+            self.height = None
         else:
             if lf is None:
                 lf = dict
             assert md > 0
-            t = lf if md == 1 else lambda: cls(maxdepth=md - 1, leaffactory=lf,
-                                               noclobber=nc)
+            if md == 1:
+                t = lf
+            else:
+                class __submkd(cls):
+                    def __init__(self, **kwargs):
+                        maxd = kwargs.get('maxdepth', md - 1)
+                        cls.__init__(self, maxdepth=maxd, leaffactory=lf,
+                                     noclobber=nc)
+                __submkd.__name__ = '__submkd__%d' % id(__submkd)
+                t = __submkd
+
+            self.height = md
+            if isinstance(t, type):
+                # tname = t.__name__
+                if issubclass(t, MultiKeyDict):
+                    # global INDENT; INDENT += 1
+                    h = t().height
+                    # INDENT -= 1
+                    # if h is not None:
+                    #     print '%s >> %d -> %d' % ('  ' * INDENT, self.height, h + 1)
+                    self.height = h if h is None else h + 1
+                elif issubclass(t, dict):
+                    self.height += 1
+            # else:
+            #     tname = str(t)
+
+            # indent = '  ' * INDENT
+            # print indent, md, self.height, isinstance(t, type), (isinstance(t, type) and issubclass(t, MultiKeyDict)), tname, id(t), cls.__name__, id(cls)
 
         super(MultiKeyDict, self).__init__(t)
 
@@ -92,10 +119,12 @@ class MultiKeyDict(defaultdict):
             v = self.__getitem__(keys[0])
             return v.has_key(*keys[1:])
 
+
     def _chkkeys(self, keys):
         l = len(keys)
         assert l and hasattr(keys, '__iter__')
-        md = self.maxdepth
+        # md = self.maxdepth
+        md = self.height
         if md is not None and l > md:
             raise KeyError('%s (exceeds maxdepth=%d)' % (str(keys), md))
         return l
@@ -107,9 +136,15 @@ class MultiKeyDict(defaultdict):
 
 
     def _get(self, keys, l):
-        #v = super(MultiKeyDict, self).__getitem__(keys[0])
         v = self.__getitem__(keys[0])
-        return v if l == 1 else v._get(keys[1:], l - 1)
+
+        assert (l == 1 or isinstance(v, MultiKeyDict) or
+                (isinstance(v, dict) and l == 2))
+
+        return (v if l == 1
+                else v._get(keys[1:], l - 1) if isinstance(v, MultiKeyDict)
+                else v[keys[1]])
+    
 
 
     _OK = object()
