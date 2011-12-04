@@ -36,6 +36,7 @@ class Hdf5File(h5py.File):
 
     def __init__(self, path, mode='r+', **kwargs):
         self._mode = mode
+        self._path = path
         super(Hdf5File, self).__init__(path, mode, **kwargs)
 
 
@@ -45,15 +46,21 @@ class Hdf5File(h5py.File):
         Hdf5File.REGISTRY[id(self)] = self
         return self
 
+    def fileno(self):
+        # FIXME: I have not been able to find any documentation to
+        # justify the implementation of this method; having it keeps
+        # flock from complaining, but it's anyone's guess whether it's
+        # doing the right thing...
+        return self.fid.fileno[0]
 
     def _lock(self):
         from fcntl import flock, LOCK_EX, LOCK_NB
         try:
-            flock(LOCK_EX|LOCK_NB)
+            flock(self, LOCK_EX|LOCK_NB)
         except IOError, e:
             LOGGER.log("can't immediately write-lock the file "
                        "(%s), blocking ..." % e)
-            flock(LOCK_EX)
+            flock(self, LOCK_EX)
         
 
     def __exit__(self, exc_type, exc_val, exc_tb):
