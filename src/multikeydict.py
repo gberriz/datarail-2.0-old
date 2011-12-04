@@ -68,13 +68,7 @@ class MultiKeyDict(defaultdict):
             if md == 1:
                 t = lf
             else:
-                class __submkd(cls):
-                    def __init__(self, **kwargs):
-                        maxd = kwargs.get('maxdepth', md - 1)
-                        cls.__init__(self, maxdepth=maxd, leaffactory=lf,
-                                     noclobber=nc)
-                __submkd.__name__ = '__submkd__%d' % id(__submkd)
-                t = __submkd
+                t = _subclass_factory(cls, md - 1, leaffactory=lf, noclobber=nc)
 
             self.height = md
             if isinstance(t, type):
@@ -303,3 +297,18 @@ class MultiKeyDict(defaultdict):
 
     def _dimvals(self):
         return map(tuple, self.__dimvals())
+        
+
+def _subclass_factory(cls, default_maxdepth, _memo=dict(), **nspace):
+    assert default_maxdepth > 0
+    key = tuple([default_maxdepth] + sorted(nspace.items()))
+    ret = _memo.get(key, None)
+    if ret is None:
+        kwargs = _deepcopy(nspace)
+        class _submkd(cls):
+            def __init__(self, maxdepth=default_maxdepth, **ignored):
+                cls.__init__(self, maxdepth=maxdepth, **kwargs)
+
+        _submkd.__name__ = name = '_submkd__%d' % id(_submkd)
+        globals()[name] = _memo[key] = ret = _submkd
+    return ret
