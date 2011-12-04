@@ -118,10 +118,15 @@ class MultiKeyDict(defaultdict):
 
 
     def _get(self, keys, l):
-        v = self.__getitem__(keys[0])
+        key = keys[0]
+        hk = self.has_key(key)
+        v = self.__getitem__(key)
 
         assert (l == 1 or isinstance(v, MultiKeyDict) or
                 (isinstance(v, dict) and l == 2))
+
+        if not hk:
+            self._keyorder.add(key)
 
         return (v if l == 1
                 else v._get(keys[1:], l - 1) if isinstance(v, MultiKeyDict)
