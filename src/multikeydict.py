@@ -241,33 +241,33 @@ class MultiKeyDict(defaultdict):
         return self.__pop(k)
 
 
-    def iteritemsmk(self):
+    def iterkeysmk(self, height=float('inf')):
         for k, v in self.iteritems():
             ck = () if k == self.NIL else (k,)
-            if isinstance(v, MultiKeyDict):
-                for kk, vv in v.iteritemsmk():
-                    yield ck + kk, vv
+            if isinstance(v, MultiKeyDict) and height > 1:
+                for kk in v.iterkeysmk(height=height-1):
+                    yield ck + kk
             else:
-                yield ck, v
+                yield ck
 
 
-    def itervaluesmk(self):
+    def itervaluesmk(self, height=float('inf')):
         for v in self.itervalues():
-            if isinstance(v, MultiKeyDict):
-                for vv in v.itervaluesmk():
+            if isinstance(v, MultiKeyDict) and height > 1:
+                for vv in v.itervaluesmk(height=height-1):
                     yield vv
             else:
                 yield v
 
 
-    def iterkeysmk(self):
+    def iteritemsmk(self, height=float('inf')):
         for k, v in self.iteritems():
             ck = () if k == self.NIL else (k,)
-            if isinstance(v, MultiKeyDict):
-                for kk in v.iterkeysmk():
-                    yield ck + kk
+            if isinstance(v, MultiKeyDict) and height > 1:
+                for kk, vv in v.iteritemsmk(height=height-1):
+                    yield ck + kk, vv
             else:
-                yield ck
+                yield ck, v
 
 
     def permutekeys(self, perm, deepcopy=False):
