@@ -103,7 +103,7 @@ def ishdf5(path):
 def createh5h(bn, ext='.h5'):
     fn = bn + ext
     rm(fn)
-    return hdf.Hdf5(bn, ext), fn
+    return hdf.Hdf5(path=fn), fn
 
 
 def add(h5h, dimspec, data):

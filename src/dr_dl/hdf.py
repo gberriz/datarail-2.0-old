@@ -50,11 +50,29 @@ class Hdf5:
 
     '''
 
-    EXT = '.hdf5'
+    __DEFAULT_EXT = '.hdf5'
 
-    def __init__(self, projectname, ext=EXT):
+    def __init__(self, projectname=None, path=None, ext=None,
+                 _default_ext=__DEFAULT_EXT):
+        if path is None and projectname is None:
+            raise TypeError('both of "path" and "projectname" '
+                            'cannot be None')
+
+        if path is None:
+            assert projectname is not None
+            if ext is None:
+                ext = _default_ext
+            path = projectname + ext
+        else:
+            if ext is not None:
+                raise TypeError('"path" and "ext" cannot be both '
+                                'specified')
+            if projectname is None:
+                projectname = os.path.splitext(os.path.basename(path))[1]
+
         self.name = projectname
-        self.filename = projectname + ext
+        self.filename = path
+
         logging.basicConfig( format='%(asctime)s %(levelname)s\
                 %(message)s', level=logging.ERROR)
         logging.info('Try using an existing: %s' % self.filename)
