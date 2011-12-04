@@ -82,7 +82,7 @@ class MultiKeyDict(defaultdict):
         self.maxdepth = md
         self.noclobber = nc
         self._keyorder = OrderedSet()
-        #self._nextval = 0
+
 
     def __getitem__(self, key):
         md = self.maxdepth
@@ -131,7 +131,6 @@ class MultiKeyDict(defaultdict):
         return (v if l == 1
                 else v._get(keys[1:], l - 1) if isinstance(v, MultiKeyDict)
                 else v[keys[1]])
-    
 
 
     _OK = object()
@@ -165,7 +164,6 @@ class MultiKeyDict(defaultdict):
             if not (hk and v == val):
                 if self.noclobber and hk:
                     return (key,)
-                #assert not (self.noclobber and hk), unicode(key).encode('utf-8')
                 super(MultiKeyDict, self).__setitem__(key, val)
         else:
             stat = v._set(l - 1, val, subkeys[0], *subkeys[1:])
@@ -193,8 +191,10 @@ class MultiKeyDict(defaultdict):
                       else _deepcopy(v) if deep else v)
         return ret
         
+
     def __str__(self):
         return self.todict().__str__()
+
 
     def update(self, dict_):
         for k, v in dict_.items():
@@ -208,8 +208,10 @@ class MultiKeyDict(defaultdict):
                 continue
             self[k] = v
 
+
     def delete(self, keys):
         self.popmk(keys)
+
 
     def popmk(self, keys):
         l = self._chkkeys(keys)
@@ -284,9 +286,7 @@ class MultiKeyDict(defaultdict):
                 mkd.set(_permute(k), v)
         else:
             for k, v in self.iteritemsmk():
-                kk = _permute(k)
-                mkd.set(kk, v)
-                # mkd.set(_permute(k), v)
+                mkd.set(_permute(k), v)
             
         return mkd
 
