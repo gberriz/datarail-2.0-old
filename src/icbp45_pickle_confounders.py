@@ -111,6 +111,7 @@ def main(argv):
         OutputKeyCoords = namedtuple('OutputKeyCoords',
                                      KeyCoords._fields + ('repno',))
 
+        global Cube  # required for pickling
         class Cube(mkd):
             def __init__(self, *args, **kwargs):
                 maxd = kwargs.get('maxdepth', len(OutputKeyCoords._fields))
@@ -135,7 +136,7 @@ def main(argv):
                 break
 
     PickledCubes = namedtuple('PickledCubes', 'dimensions cubes')
-    pc = PickledCubes(OutputKeyCoords._fields, cubes.todict())
+    pc = PickledCubes((OutputKeyCoords._fields, ValCoords._fields), cubes)
     with open(outpath, 'w') as fh:
         pickle.dump(pc, fh)
 
