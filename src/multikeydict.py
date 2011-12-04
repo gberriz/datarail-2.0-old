@@ -294,10 +294,9 @@ class MultiKeyDict(defaultdict):
     def __dimvals(self):
         def _dv(x):
             return x.__dimvals() if isinstance(x, MultiKeyDict) else set()
-        chs = map(_dv, self.values())
-        if all(len(ch) == 0 for ch in chs):
-            return [self._keyorder]
-        return [self._keyorder] + [sum(k, OrderedSet()) for k in zip(*chs)]
+        children = map(_dv, self.values())
+        return [map(unicode, self._keyorder)] + [sum(k, OrderedSet())
+                                                 for k in zip(*children)]
 
 
     def _dimvals(self):
