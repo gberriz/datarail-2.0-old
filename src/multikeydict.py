@@ -1,5 +1,5 @@
 from collections import defaultdict
-from copy import deepcopy
+from copy import deepcopy as _deepcopy
 
 from orderedset import OrderedSet
 
@@ -51,8 +51,7 @@ class MultiKeyDict(defaultdict):
 
     NIL = object()
 
-    def __init__(self, maxdepth=None, leaffactory=None,
-                 noclobber=False):
+    def __init__(self, maxdepth=None, leaffactory=None, noclobber=False):
         md = maxdepth
         lf = leaffactory
         cls = type(self)
@@ -79,22 +78,11 @@ class MultiKeyDict(defaultdict):
 
             self.height = md
             if isinstance(t, type):
-                # tname = t.__name__
                 if issubclass(t, MultiKeyDict):
-                    # global INDENT; INDENT += 1
                     h = t().height
-                    # INDENT -= 1
-                    # if h is not None:
-                    #     print '%s >> %d -> %d' % ('  ' * INDENT, self.height, h + 1)
                     self.height = h if h is None else h + 1
                 elif issubclass(t, dict):
                     self.height += 1
-            # else:
-            #     tname = str(t)
-
-            # indent = '  ' * INDENT
-            # print indent, md, self.height, isinstance(t, type), (isinstance(t, type) and issubclass(t, MultiKeyDict)), tname, id(t), cls.__name__, id(cls)
-
         super(MultiKeyDict, self).__init__(t)
 
         self.maxdepth = md
@@ -203,7 +191,7 @@ class MultiKeyDict(defaultdict):
         ret = cls()
         for k, v in dict_.items():
             ret[k] = (cls.fromdict(v, deep) if isinstance(v, dict)
-                      else deepcopy(v) if deep else v)
+                      else _deepcopy(v) if deep else v)
         return ret
         
     def __str__(self):
@@ -256,7 +244,6 @@ class MultiKeyDict(defaultdict):
 
     def iteritemsmk(self):
         for k, v in self.iteritems():
-            # ck = (k,)
             ck = () if k == self.NIL else (k,)
             if isinstance(v, MultiKeyDict):
                 for kk, vv in v.iteritemsmk():
@@ -276,7 +263,6 @@ class MultiKeyDict(defaultdict):
 
     def iterkeysmk(self):
         for k, v in self.iteritems():
-            # ck = (k,)
             ck = () if k == self.NIL else (k,)
             if isinstance(v, MultiKeyDict):
                 for kk in v.iterkeysmk():
