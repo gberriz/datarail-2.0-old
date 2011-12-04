@@ -3,6 +3,8 @@
 
 # TODO: implement OrderedSet.index
 
+from pdb import set_trace as ST
+
 import collections
 
 KEY, PREV, NEXT = range(3)
@@ -204,6 +206,9 @@ class OrderedSet(collections.MutableSet):
         self.clear()                    # remove circular references
 
 
+    def __reduce_ex__(self, proto):
+        # FIXME: don't ignore proto
+        return (type(self), (list(self),))
 
 
 if __name__ == '__main__':
