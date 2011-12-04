@@ -271,6 +271,27 @@ class MultiKeyDict(defaultdict):
                 yield ck
 
 
+    def permutekeys(self, perm, deepcopy=False):
+        mkd = type(self)()
+        mkd.__dict__ = _deepcopy(self.__dict__)
+        if hasattr(perm, '__call__'):
+            _permute = perm
+        else:
+            _permute = lambda k: tuple(k[i] for i in perm)
+
+        if deepcopy:
+            for k, v in self.iteritemsmk():
+                v = _deepcopy(v)
+                mkd.set(_permute(k), v)
+        else:
+            for k, v in self.iteritemsmk():
+                kk = _permute(k)
+                mkd.set(kk, v)
+                # mkd.set(_permute(k), v)
+            
+        return mkd
+
+
     def __dimvals(self):
         def _dv(x):
             return x.__dimvals() if isinstance(x, MultiKeyDict) else set()
