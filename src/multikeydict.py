@@ -301,6 +301,11 @@ class MultiKeyDict(defaultdict):
 
     def _dimvals(self):
         return map(tuple, self.__dimvals())
+
+
+    def __reduce_ex__(self, proto):
+        assert proto == 0
+        return (type(self), (), self.__dict__, None, self.iteritems())
         
 
 def _subclass_factory(cls, default_maxdepth, _memo=dict(), **nspace):
@@ -312,6 +317,9 @@ def _subclass_factory(cls, default_maxdepth, _memo=dict(), **nspace):
         class _submkd(cls):
             def __init__(self, maxdepth=default_maxdepth, **ignored):
                 cls.__init__(self, maxdepth=maxdepth, **kwargs)
+
+            def __reduce_ex__(self, proto):
+                return (MultiKeyDict, (), self.__dict__, None, self.iteritems())
 
         _submkd.__name__ = name = '_submkd__%d' % id(_submkd)
         globals()[name] = _memo[key] = ret = _submkd
