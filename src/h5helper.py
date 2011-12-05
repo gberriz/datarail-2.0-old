@@ -8,6 +8,7 @@ import fcntl
 
 import h5py
 
+from operator import mul
 from ordereddict import OrderedDict as ordd
 import hdf
 
@@ -119,6 +120,11 @@ def add(h5h, dimspec, data):
 def mk_dimspec(dimnames, dimvals):
     return ordd(zip(dimnames, dimvals))
 
+
+def prod(ls, init=1):
+    return reduce(mul, ls, init)
+
+
 def main(argv):
     from itertools import product
     from string import ascii_lowercase as lc, ascii_uppercase as uc
@@ -166,10 +172,6 @@ def main(argv):
     # dimvals0 = mk_dimvals(dimnames0, dimlengths0, 1)
     dimvals1 = mk_dimvals(dimnames1, dimlengths1)
     dimspec = mk_dimspec(dimnames, dimvals0 + dimvals1)
-
-    def prod(ls, init=1):
-        from operator import mul
-        return reduce(mul, ls)
 
     data0 = range(prod(dimlengths0))
     data1 = array([(-1)**i * x for i, x in
