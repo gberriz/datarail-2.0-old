@@ -26,15 +26,8 @@ class Hdf5File(h5py.File):
     def __init__(self, path, mode='r+', **kwargs):
         self._mode = mode
         self._path = path
+        self._dummyhandle = None
         super(Hdf5File, self).__init__(path, mode, **kwargs)
-
-
-    def fileno(self):
-        # FIXME: I have not been able to find any documentation to
-        # justify the implementation of this method; having it keeps
-        # flock from complaining, but it's anyone's guess whether it's
-        # doing the right thing...
-        return self.fid.fileno[0]
 
 
     def __enter__(self):
@@ -56,34 +49,45 @@ class Hdf5File(h5py.File):
         super(Hdf5File, self).__del__()
 
 
+    def close(self):
+        h = self._dummyhandle
+        if h is not None:
+            h.close()
+            self._dummyhandle = None
+        super(Hdf5File, self).close()
+
+
     def _lock(self):
         from fcntl import flock, LOCK_EX, LOCK_NB
+        print 'locking %s...' % self._path
+        self._dummyhandle = open(self._path, 'r')
         try:
-            flock(self, LOCK_EX|LOCK_NB)
+            flock(self._dummyhandle, LOCK_EX|LOCK_NB)
         except IOError, e:
             LOGGER.log("can't immediately write-lock the file "
                        "(%s), blocking ..." % e)
-            flock(self, LOCK_EX)
+            flock(self._dummyhandle, LOCK_EX)
         
+
 
     REGISTRY = dict()
 
-    def _register(self):
-        Hdf5File.REGISTRY[id(self)] = self
+    def _register(self, registry=REGISTRY):
+        registry[id(self)] = self
 
 
-    def _unregister(self):
+    def _unregister(self, registry=REGISTRY):
         # Note: LBYL-style below to avoid unnecessary output to stderr
         # (exceptions are ignored while this method executes, and
         # warnings are written to stderr instead)
         id_ = id(self)
-        if id_ in Hdf5File.REGISTRY:
-            del Hdf5File.REGISTRY[id_]
+        if id_ in registry:
+            del registry[id_]
         
 
     @classmethod
-    def shutdown(cls):
-        for h in Hdf5File.REGISTRY.values():
+    def shutdown(cls, registry=REGISTRY):
+        for h in registry.values():
             try:
                 h.close()
             except Exception, e:
