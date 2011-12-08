@@ -277,6 +277,56 @@ class MultiKeyDict(defaultdict):
                 yield ck, v
 
 
+    def sortedkeysmk(self, key=(), height=float('inf')):
+        for k in self._sortedkeysmk(key, height):
+            yield k[0] if height == 1 else k
+
+
+    def _sortedkeysmk(self, key, height):
+        ks = sorted(self.keys(), key=key[0]) if key else self._keyorder
+        for k in ks:
+            ck = () if k == self.NIL else (k,)
+            v = self[k]
+            if isinstance(v, MultiKeyDict) and height > 1:
+                for kk in v._sortedkeysmk(key=key[1:], height=height-1):
+                    yield ck + kk
+            else:
+                yield ck
+
+
+    def sortedvaluesmk(self, key=(), height=float('inf')):
+        for k in self._sortedvaluesmk(key, height):
+            yield k[0] if height == 1 else k
+
+
+    def _sortedvaluesmk(self, key, height):
+        vs = (sorted(self.values(), key=key[0]) if key
+              else [self[k] for k in self._keyorder])
+        for v in vs:
+            if isinstance(v, MultiKeyDict) and height > 1:
+                for vv in v._sortedvaluesmk(key=key[1:], height=height-1):
+                    yield vv
+            else:
+                yield v
+
+
+    def sorteditemsmk(self, key=(), height=float('inf')):
+        for k, v in self._sorteditemsmk(key, height):
+            yield ((k[0] if height == 1 else k), v)
+
+
+    def _sorteditemsmk(self, key, height):
+        kvs = (sorted(self.items(), key=key[0]) if key
+               else [(k, self[k]) for k in self._keyorder])
+        for k, v in kvs:
+            ck = () if k == self.NIL else (k,)
+            if isinstance(v, MultiKeyDict) and height > 1:
+                for kk, vv in v._sorteditemsmk(key=key[1:], height=height-1):
+                    yield ck + kk, vv
+            else:
+                yield ck, v
+
+
     def permutekeys(self, perm, deepcopy=False):
         mkd = type(self)()
         mkd.__dict__ = _deepcopy(self.__dict__)
