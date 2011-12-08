@@ -206,9 +206,16 @@ class OrderedSet(collections.MutableSet):
         self.clear()                    # remove circular references
 
 
+    
     def __reduce_ex__(self, proto):
         # FIXME: don't ignore proto
-        return (type(self), (list(self),))
+        # return (type(self), (list(self),))
+        return (_unpickle, (list(self),))
+
+
+def _unpickle(iterable):
+    return OrderedSet(iterable)
+
 
 
 if __name__ == '__main__':
