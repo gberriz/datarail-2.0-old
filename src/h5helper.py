@@ -23,30 +23,11 @@ class PseudoLogger(object):
 LOGGER = PseudoLogger()
 
 class Hdf5File(h5py.File):
-    REGISTRY = dict()
-
-    @classmethod
-    def shutdown(cls):
-        for h in Hdf5File.REGISTRY:
-            try:
-                h.close()
-            except Exception, e:
-                try:
-                    LOGGER.log('at shutdown: %s' % str(e))
-                except:
-                    pass
-
     def __init__(self, path, mode='r+', **kwargs):
         self._mode = mode
         self._path = path
         super(Hdf5File, self).__init__(path, mode, **kwargs)
 
-
-    def __enter__(self):
-        if self._mode != 'r':
-            self._lock()
-        Hdf5File.REGISTRY[id(self)] = self
-        return self
 
     def fileno(self):
         # FIXME: I have not been able to find any documentation to
@@ -54,6 +35,26 @@ class Hdf5File(h5py.File):
         # flock from complaining, but it's anyone's guess whether it's
         # doing the right thing...
         return self.fid.fileno[0]
+
+
+    def __enter__(self):
+        super(Hdf5File, self).__enter__()
+        if self._mode != 'r':
+            self._lock()
+        self._register()
+        return self
+
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+        self._unregister()
+        super(Hdf5File, self).__exit__()
+
+
+    def __del__(self):
+        self._unregister()
+        super(Hdf5File, self).__del__()
+
 
     def _lock(self):
         from fcntl import flock, LOCK_EX, LOCK_NB
@@ -65,18 +66,33 @@ class Hdf5File(h5py.File):
             flock(self, LOCK_EX)
         
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
-        self.__del__()
+    REGISTRY = dict()
+
+    def _register(self):
+        Hdf5File.REGISTRY[id(self)] = self
 
 
-    def __del__(self):
+    def _unregister(self):
         # Note: LBYL-style below to avoid unnecessary output to stderr
         # (exceptions are ignored while this method executes, and
         # warnings are written to stderr instead)
         id_ = id(self)
         if id_ in Hdf5File.REGISTRY:
             del Hdf5File.REGISTRY[id_]
+        
+
+    @classmethod
+    def shutdown(cls):
+        for h in Hdf5File.REGISTRY.values():
+            try:
+                h.close()
+            except Exception, e:
+                try:
+                    LOGGER.log('at shutdown: %s' % str(e))
+                except:
+                    pass
+
+
 
 
 import atexit
