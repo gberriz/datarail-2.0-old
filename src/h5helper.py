@@ -1,6 +1,7 @@
 from __future__ import division
 
 import os
+import os.path as op
 import errno
 import numpy as np
 from numpy import arange, array
@@ -101,10 +102,18 @@ def ishdf5(path):
         raise
 
 
-def createh5h(bn, ext='.h5'):
-    fn = bn + ext
-    rm(fn)
-    return hdf.Hdf5(path=fn), fn
+def createh5h(bn, ext=None, _default_ext='.h5'):
+    if op.splitext(bn)[1] == _default_ext:
+        path = bn
+    else:
+        if ext is None:
+            ext = _default_ext
+        path = bn + ext
+    rm(path)
+    # NOTE: at the moment, the call below *requires* explicitly
+    # mentioning the path keyword; i.e. hdf.Hdf5(path) will cause
+    # problems
+    return hdf.Hdf5(path=path), path
 
 
 def add(h5h, dimspec, data):
