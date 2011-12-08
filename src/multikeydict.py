@@ -92,6 +92,11 @@ class MultiKeyDict(defaultdict):
             return dict.__getitem__(self, key)
 
 
+    def __setitem__(self, key, val):
+        self._keyorder.add(key)        
+        super(MultiKeyDict, self).__setitem__(key, val)
+
+
     def has_key(self, *keys):
         l = self._chkkeys(keys)
         yn = super(MultiKeyDict, self).has_key(keys[0])
@@ -164,7 +169,7 @@ class MultiKeyDict(defaultdict):
             if not (hk and v == val):
                 if self.noclobber and hk:
                     return (key,)
-                super(MultiKeyDict, self).__setitem__(key, val)
+                self.__setitem__(key, val)
         else:
             stat = v._set(l - 1, val, subkeys[0], *subkeys[1:])
             if stat is not MultiKeyDict._OK:
