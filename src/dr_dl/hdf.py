@@ -11,6 +11,7 @@ import cPickle as pickle
 import os
 import logging
 #from numpy import nan, empty
+from pdb import set_trace as ST
 
 def is_sequential(elements):
     for i, dim_index in enumerate(sorted(elements)):
@@ -647,7 +648,7 @@ class SdCube(object):
             raise ValueError('The dataset must have the same dimension labels'
                     ' as the old dataset.')
         dset_mapping = dict()
-        dims = [[]] * len(group_mapping)
+        dims = [None] * len(group_mapping)
         for dim_label, dim_index in group_mapping.items():
             dset_mapping[dim_index] = dimensions[dim_label]
             dims[dim_index] = len(dimensions[dim_label])
