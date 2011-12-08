@@ -1,4 +1,4 @@
-from h5helper import prod
+import numpy as np
 
 def index2coords(i, shape, order='C'):
     """
@@ -29,7 +29,7 @@ True
         raise TypeError('"shape" parameter must be a non-empty sequence '
                         'of positive integers')
 
-    n = prod(shape)
+    n = np.product(shape)
     if not -n <= i < n:
         raise ValueError('index %d exceeds size of shape %s array' %
                          (i, shape))
@@ -87,20 +87,17 @@ def _c2i(c, s, l):
         return c[0] + s[0]*(_c2i(c[1:], s[1:], l - 1))
 
 
+def _make_test_array(*shape):
+    return reduce(lambda I, J: np.array([I + j*I.size for j in range(J)]),
+                  reversed(shape), np.array(0))
+
 if __name__ == '__main__':
-
     from itertools import product
-    import numpy as np
-    from h5helper import prod
-
-    def _make_test_array(*shape):
-        return reduce(lambda I, J: np.array([I + j*I.size for j in range(J)]),
-                      reversed(shape), np.array(0))
 
     shp = 3, 4, 5
     array3d = _make_test_array(*shp)
     array1d = array3d.reshape((array3d.size,))
-    irng = tuple(range(prod(shp)))
+    irng = tuple(range(np.product(shp)))
     crng = tuple(product(*map(range, shp)))
     i2c = index2coords
     c2i = coords2index
