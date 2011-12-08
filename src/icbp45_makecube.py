@@ -3,7 +3,9 @@ import os.path as op
 from collections import namedtuple
 from glob import glob
 import numpy as np
-import re
+import cPickle as pickle
+from fcntl import flock, LOCK_EX, LOCK_NB
+import warnings
 
 from memoized import memoized
 from sdc_extract import _extract_wells_data
@@ -35,13 +37,8 @@ __d.update(
       'extra_dim': {'stat': ('mean', 'stddev')},
     })
 
-
-def quote_re_pattern(pat, _qpat=re.compile(r'([.^$+*?[\](){}])')):
-    return _qpat.sub(r'\\\1', pat)
-
 __d['wanted_templates'] = map(lambda s: '%s_w%%s (Mean)' % s,
                               PARAM.wanted_feature_types)
-__d['strip_ext_re'] = re.compile(quote_re_pattern(PARAM.hdf5_ext) + '$')
 del __d
 
 
@@ -49,12 +46,12 @@ def _parseargs(argv):
     path_to_expmap = argv[1]
     assay = argv[2]
     subassay = argv[3]
-    output_basename = PARAM.strip_ext_re.sub('', argv[4])
+    output_path = argv[4]
 
     d = dict()
     l = locals()
     params = ('path_to_expmap assay subassay '
-              'output_basename ')
+              'output_path ')
     for p in params.split():
         d[p] = l[p]
     _updateparams(d)
@@ -133,10 +130,10 @@ def maybe_reshape(d):
     return d.reshape((d.size, 1)) if len(d.shape) == 1 else d
 
 
-def mean_and_stddev(d, _cls=PARAM.data_coords):
+def mean_and_stddev(d):
     dd = maybe_reshape(d)
-    return _cls(*np.hstack(zip(dd.mean(0, np.float64),
-                               dd.std(0, np.float64))))
+    return np.hstack(zip(dd.mean(0, np.float64),
+                         dd.std(0, np.float64)))
 
 
 @memoized
@@ -168,11 +165,6 @@ def get_subassay(subrecord):
     return icbp45_utils.get_subassay(subrecord.plate)
 
 
-def print_record(segments, _sep0=PARAM.sep[0], _sep1=PARAM.sep[1],
-                 _enc=PARAM.encoding):
-    print _sep0.join([_sep1.join(map(output_form, seg))
-                      for seg in segments]).encode(_enc)
-
 def main(argv):
     _parseargs(argv)
 
@@ -180,6 +172,47 @@ def main(argv):
 
     def skip(key, val, assay=PARAM.assay, subassay=PARAM.subassay):
         return not (val.assay == assay and get_subassay(val) == subassay)
+
+    def save(cube, key=(PARAM.subassay, PARAM.assay),
+             path=PARAM.output_path):
+
+        # 'r+' apparently does not create the file if it doesn't
+        # already exist, so...
+        with open(path, 'a'):
+            pass
+
+        with open(path, 'r+') as fh:
+            try:
+                flock(fh, LOCK_EX|LOCK_NB)
+            except IOError, e:
+                warnings.warn("can't immediately write-lock "
+                              "the file (%s), blocking ..." % e)
+                flock(fh, LOCK_EX)
+
+            fh.seek(0, 0)
+
+            try:
+                cubedict = pickle.load(fh)
+            except EOFError:
+                cubedict = mkd()
+            except Exception, e:
+                cubedict = mkd()
+                import traceback as tb
+                tb.print_exc()
+                print 'type:', type(e)
+                print 'str:', str(e)
+                print 'message: <<%s>>' % e.message
+
+            try:
+                # this precaution is necessary due to a bug in MKD...
+                cubedict.delete(key)
+            except KeyError, e:
+                pass
+
+            cubedict.set(key, cube)
+            fh.seek(0, 0)
+            pickle.dump(cubedict, fh)
+
 
     with open(path) as fh:
         KeyCoords, ValCoords = [namedtuple(n, c)
@@ -211,19 +244,11 @@ def main(argv):
 
 
     assert cube, 'empty cube'
+    save(cube)
 
-    import h5helper as H5H
-    dimvals = cube._dimvals()
-    dimnames = KeyCoords._fields
-    dimspec = H5H.mk_dimspec(dimnames, dimvals)
-    dimspec.update(PARAM.extra_dim)
-    dimlengths = map(len, dimspec.values())
-
-    h5 = H5H.createh5h(PARAM.output_basename)[0]
-    H5H.add(h5, dimspec, np.vstack(cube.itervaluesmk()).reshape(dimlengths))
     return 0
 
 
 if __name__ == '__main__':
     import sys
-    exit(main(sys.argv))
+    main(sys.argv) # any output sent to sys.stderr by default
