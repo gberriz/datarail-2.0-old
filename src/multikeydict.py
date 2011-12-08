@@ -349,6 +349,19 @@ class MultiKeyDict(defaultdict):
         return mkd
 
 
+    def collapsekeys(self, height, deepcopy=False):
+        assert height > 1
+        mkd = type(self)()
+        if deepcopy:
+            for k, v in self.sorteditemsmk(height=height):
+                mkd[k] = _deepcopy(v)
+        else:
+            for k, v in self.sorteditemsmk(height=height):
+                mkd[k] = v
+
+        return mkd
+
+
     def __dimvals(self):
         def _dv(x):
             return x.__dimvals() if isinstance(x, MultiKeyDict) else set()
