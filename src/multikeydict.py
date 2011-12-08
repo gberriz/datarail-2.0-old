@@ -331,17 +331,19 @@ class MultiKeyDict(defaultdict):
     def permutekeys(self, perm, deepcopy=False):
         mkd = type(self)()
         mkd.__dict__ = _deepcopy(self.__dict__)
+
         if hasattr(perm, '__call__'):
             _permute = perm
         else:
             _permute = lambda k: tuple(k[i] for i in perm)
 
+        mkd._keyorder = OrderedSet()
         if deepcopy:
-            for k, v in self.iteritemsmk():
+            for k, v in self.sorteditemsmk():
                 v = _deepcopy(v)
                 mkd.set(_permute(k), v)
         else:
-            for k, v in self.iteritemsmk():
+            for k, v in self.sorteditemsmk():
                 mkd.set(_permute(k), v)
             
         return mkd
