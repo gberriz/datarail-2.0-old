@@ -116,15 +116,17 @@ def createh5h(bn, ext=None, _default_ext='.h5'):
     return hdf.Hdf5(path=path), path
 
 
-def add(h5h, dimspec, data):
+def add(h5h, dimspec, data, name=None):
     start = ordd((k, v[0]) for k, v in dimspec.items())
 
     dimnames = dimspec.keys()
-    nd = len(dimnames)
-    name = h5h.add_sdcube(dimnames, name='%dD_0' % nd)
+    if name is None:
+        name = '%dD_0' % len(dimnames)
+    name = h5h.add_sdcube(dimnames, name=name)
     cube = h5h.get_sdcube(name)
     cube.create_dataset(dimspec)
     cube.set_data(start, data)
+
     
 def mk_dimspec(dimnames, dimvals):
     return ordd(zip(dimnames, dimvals))
