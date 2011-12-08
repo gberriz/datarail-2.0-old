@@ -283,7 +283,8 @@ class MultiKeyDict(defaultdict):
 
 
     def _sortedkeysmk(self, key, height):
-        ks = sorted(self.keys(), key=key[0]) if key else self._keyorder
+        ks = sorted(self.keys(), key=key[0]) if key and key[0] \
+             else self._keyorder
         for k in ks:
             ck = () if k == self.NIL else (k,)
             v = self[k]
@@ -300,8 +301,8 @@ class MultiKeyDict(defaultdict):
 
 
     def _sortedvaluesmk(self, key, height):
-        vs = (sorted(self.values(), key=key[0]) if key
-              else [self[k] for k in self._keyorder])
+        vs = sorted(self.values(), key=key[0]) if key and key[0] \
+             else [self[k] for k in self._keyorder]
         for v in vs:
             if isinstance(v, MultiKeyDict) and height > 1:
                 for vv in v._sortedvaluesmk(key=key[1:], height=height-1):
@@ -316,8 +317,8 @@ class MultiKeyDict(defaultdict):
 
 
     def _sorteditemsmk(self, key, height):
-        kvs = (sorted(self.items(), key=key[0]) if key
-               else [(k, self[k]) for k in self._keyorder])
+        kvs = sorted(self.items(), key=key[0]) if key \
+              else [(k, self[k]) for k in self._keyorder]
         for k, v in kvs:
             ck = () if k == self.NIL else (k,)
             if isinstance(v, MultiKeyDict) and height > 1:
