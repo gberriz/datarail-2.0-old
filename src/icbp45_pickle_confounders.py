@@ -3,9 +3,12 @@ import os
 from collections import namedtuple, defaultdict
 # import pickle
 import cPickle as pickle
+import numpy as np
 
 from multikeydict import MultiKeyDict as mkd
 import icbp45_utils
+from factor_nset import get_feasible
+from keymapper import KeyMapper
 
 from pdb import set_trace as ST
 
@@ -19,6 +22,7 @@ __d.update(
       'debug': False,
       'encoding': 'utf-8',
       'sep': (',\t,', ',', '|', '^'),
+      'extra_dim_name': 'confounder',
     })
 del __d
 
@@ -119,6 +123,8 @@ def main(argv):
 
         cubes = mkd(1, Cube)
 
+        mapper = KeyMapper(*[KeyMapper(len(c._fields))
+                             for c in OutputKeyCoords, ValCoords])
         debug = PARAM.debug
         count = 0
         for line in fh:
@@ -126,19 +132,56 @@ def main(argv):
                         zip((KeyCoords, ValCoords), parse_line(line))]
             subassay = get_subassay(val)
             repno = get_repno(key, val)
-            newkey = OutputKeyCoords(*(key + (repno,)))
-            cubes.get((subassay,)).set(newkey, val)
-
+            newkey, newval = mapper.getid((key + (repno,), val))
+            cubes.get((subassay,)).set(newkey, np.array(newval, dtype='int32'))
             if not debug:
                 continue
             count += 1
             if count >= 10:
                 break
 
-    PickledCubes = namedtuple('PickledCubes', 'dimensions cubes')
-    pc = PickledCubes((OutputKeyCoords._fields, ValCoords._fields), cubes)
-    with open(outpath, 'w') as fh:
-        pickle.dump(pc, fh)
+    kcmapper, vcmapper = mapper.mappers
+    nonfactorial = set()
+    npcubes = dict()
+
+    for subassay, cube in cubes.items():
+        keys_tuple = list(cube.sortedkeysmk())
+        nonfactorial.update(get_feasible(keys_tuple)[0])
+
+    # prekeydims, prevaldims = [m.mappers for m in kcmapper, vcmapper]
+
+    dimnames = OutputKeyCoords._fields
+    if nonfactorial:
+        subperms = map(tuple, (sorted(nonfactorial),
+                               [i for i in range(len(dimnames))
+                                if i not in nonfactorial]))
+        height = len(subperms[0])
+        assert height > 1
+        perm = sum(subperms, ())
+        predn = [tuple([dimnames[i] for i in s]) for s in subperms]
+        dimnames = ((u'__'.join(predn[0]),) + predn[1])
+
+        ms = kcmapper.mappers
+        pkm = [tuple([ms[i] for i in s]) for s in subperms]
+        kcmapper = KeyMapper(*((KeyMapper(*pkm[0]),) + pkm[1]))
+
+    for subassay, cube in cubes.items():
+        if nonfactorial:
+            cube = (cube.permutekeys(perm).collapsekeys(height))
+            for k, v in cube.sorteditemsmk():
+                print kcmapper[k], vcmapper[map(int, v)]
+
+    #     # does the cube below differ from the one produced by using
+    #     # cube.itervaluesmk()?
+    #     prekeydims, prevaldims = [m.mappers for m in keymapper, valmapper]
+    #     newshape = tuple(map(len, prekeydims + (prevaldims,)))
+    #     npcube = np.vstack(cube.sortedvaluesmk()).reshape(newshape)
+    #     npcubes[subassay] = (npcube, prekeydims, prevaldims)
+
+    # PickledCubes = namedtuple('PickledCubes', 'dimensions cubes')
+    # pc = PickledCubes((OutputKeyCoords._fields, ValCoords._fields), cubes)
+    # with open(outpath, 'w') as fh:
+    #     pickle.dump(pc, fh)
 
 
 if __name__ == '__main__':
