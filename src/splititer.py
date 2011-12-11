@@ -115,8 +115,13 @@ def splititer(seqiter, n):
     seqiter.  (Hence, the integers in the n parameter must all be
     valid indices for the sequences produced by seqiter.)
 
-    Functions splititer and mergeiters are essentially inverses of
-    each other, as demonstrated by the mergesplit_demo function below:
+    WARNING: once an iterator is passed as argument to splititer, it
+    is no longer safe to use it independently.
+
+    Functions splititer and mergeiters may be regarded as inverses of
+    each other (as demonstrated by the mergesplit_demo function
+    below), as long as one keeps in mind the proviso written in the
+    previous paragraph.
 
     def mergesplit_demo(n, times, _minpreflen=3, _maxpreflen=8):
         from itertools import count, islice
@@ -212,5 +217,3 @@ def _ith(seqiter, i):
     sequence produced by seqiter.
     """
     return (seq[i] for seq in seqiter)
-
-
