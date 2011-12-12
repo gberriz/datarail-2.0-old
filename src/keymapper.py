@@ -21,6 +21,28 @@ class SimpleKeyMapper(dict):
     def __call__(self, key):
         return super(SimpleKeyMapper, self).__getitem__(unicode(key))
 
+    def __getitem__(self, i):
+        ii = self._inverse_index(i)
+        try:
+            return self._inverse[ii]
+        except IndexError:
+            raise KeyError('mapper index out of range')
+
+
+    def __setitem__(self, i, v):
+        raise TypeError('read-only access')
+        
+
+    def getid(self, key):
+        try:
+            ret = self(key)
+        except KeyError:
+            _, ret = kv = unicode(key), self._newid()
+            super(SimpleKeyMapper, self).__setitem__(*kv)
+            self._update_inverse(*kv)
+        return ret
+
+
     def _newid(self):
         if self._len >= self._max_ids:
             raise ValueError('no more ids available')
@@ -39,33 +61,11 @@ class SimpleKeyMapper(dict):
         assert l == s + 1 - self._offset
         
 
-    def getid(self, key):
-        try:
-            ret = self(key)
-        except KeyError:
-            _, ret = kv = unicode(key), self._newid()
-            super(SimpleKeyMapper, self).__setitem__(*kv)
-            self._update_inverse(*kv)
-        return ret
-
-
     def _inverse_index(self, i):
         if not isinstance(i, int):
             raise TypeError('argument must be an integer')
         return i - self._offset
 
-
-    def __getitem__(self, i):
-        ii = self._inverse_index(i)
-        try:
-            return self._inverse[ii]
-        except IndexError:
-            raise KeyError('mapper index out of range')
-
-
-    def __setitem__(self, i, v):
-        raise TypeError('read-only access')
-        
 
 class KeyMapper(object):
     def __init__(self, arg0, *rest):
