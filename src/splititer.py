@@ -1,6 +1,6 @@
 from itertools import izip, tee, islice, chain
 
-def mergesplit_demo(n, times, _minpreflen=3, _maxpreflen=8):
+def mergesplit_demo(n=3, times=3, _minpreflen=3, _maxpreflen=8):
     from itertools import count, islice
     from random import randint
 
@@ -228,3 +228,20 @@ def _ith(seqiter, i):
     sequence produced by seqiter.
     """
     return (seq[i] for seq in seqiter)
+
+
+if __name__ == '__main__':
+    from itertools import count, islice
+    def take(iter_, n): return tuple(islice(iter_, n))
+    from random import randint
+    def randomprefix(iter_): return take(iter_, randint(3, 8))
+        
+    def lines():
+        with open('confounder_md_test_1') as infile:
+            for line in infile:
+                key, val = [tuple(s.split(','))
+                            for s in line.strip('\n').split(',\t,')]
+                yield (key, val)
+
+    keyiter, valiter = demuxed = splititer(lines(), 2)
+    print '\n'.join(map(str, map(randomprefix, demuxed)))
