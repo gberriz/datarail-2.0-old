@@ -240,7 +240,8 @@ def main(argv):
             target = get_target(val)
             signal = get_signal(rawdata, target)
             data = mean_and_stddev(signal)
-            cube.set(key, data)
+            cube.set(tuple(unicode(k).encode(PARAM.encoding)
+                           for k in key), data)
 
 
     assert cube, 'empty cube'
