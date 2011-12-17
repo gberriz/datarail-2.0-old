@@ -1,12 +1,21 @@
 # -*- coding: utf-8 -*-
 import os
 from collections import namedtuple, defaultdict
-# import pickle
-import cPickle as pickle
+# import pickle as serializer
+# import cPickle as serializer
 import numpy as np
+from itertools import count
 
 from multikeydict import MultiKeyDict as mkd
+from ordereddict import OrderedDict as orddict
+from orderedset import OrderedSet as ordset
+
 import icbp45_utils
+from h5helper import dump, load
+import h5helper as h5h
+#from factor_nset import min_shape
+from factor_nset import get_labels
+from factor_nset import get_factors
 from factor_nset import get_feasible
 from keymapper import KeyMapper
 
@@ -21,18 +30,20 @@ __d.update(
     {
       'debug': False,
       'encoding': 'utf-8',
-      'sep': (',\t,', ',', '|', '^'),
-      'extra_dim_name': 'confounder',
+      'sep': (u',\t,', u',', u'|', u'^'),
+      'extra_dim_name': u'confounder',
+      'maskval': 0,
+      'inttype': 'int16',
     })
 del __d
 
 def _parseargs(argv):
     path_to_expmap = argv[1]
-    path_to_pickle = argv[2]
+    path_to_outfile = argv[2]
 
     d = dict()
     l = locals()
-    params = ('path_to_expmap path_to_pickle')
+    params = ('path_to_expmap path_to_outfile')
     for p in params.split():
         d[p] = l[p]
     _updateparams(d)
@@ -60,17 +71,17 @@ def _updateparams(d):
 
 def convert(s):
     try:
-        return float(s) if '.' in s else int(s)
+        return float(s) if u'.' in s else int(s)
     except ValueError:
-        return s.decode(PARAM.encoding)
+        return s
 
 
 def parse_segment(segment, _sep=PARAM.sep[1]):
     return tuple(map(convert, segment.split(_sep)))
 
 
-def parse_line(line, _sep=PARAM.sep[0]):
-    return tuple(map(parse_segment, line.strip().split(_sep)))
+def parse_line(line, _sep=PARAM.sep[0], _enc=PARAM.encoding):
+    return tuple(map(parse_segment, line.decode(_enc).strip().split(_sep)))
 
 
 def get_subassay(subrecord):
@@ -99,9 +110,25 @@ def get_repno(key, val, _lookup=mkd(1, IdSeq)):
     return (_lookup.get((key.cell_line, val.assay)),)
 
 
+def needed_bits(n, _pow2_8=2**8, _pow2_16=2**16, _pow2_32=2**32):
+    # n < _pow2_16 ?
+    #     n < _pow2_8       ? 8  : 16
+    #   : n < _pow2_32 ? 32 : 64
+
+    return (n < _pow2_16) and \
+               (n < _pow2_8 and 8 or 16) or \
+               (n < _pow2_32 and 32 or 64)
+
+    # return ((8, 16)[n < _pow2_8],
+    #         (32, 64)[n < _pow2_32])[n < _pow2_16]
+
+    # return (8 if n < _pow2_8 else 16) \
+    #        if n < _pow2_16 else 32 if n < _pow2_32 else 64
+
+
 def main(argv):
     _parseargs(argv)
-    outpath = PARAM.path_to_pickle
+    outpath = PARAM.path_to_outfile
     if os.path.exists(outpath):
         import sys
         print >> sys.stderr, 'warning: %s exists' % outpath
@@ -109,79 +136,119 @@ def main(argv):
     global ValCoords, PickledCubes # globalized to enable pickling
     with open(PARAM.path_to_expmap) as fh:
         KeyCoords, ValCoords = [namedtuple(n, c)
-                                for n, c in zip(('KeyCoords', 'ValCoords'),
+                                for n, c in zip((u'KeyCoords', u'ValCoords'),
                                                 parse_line(fh.next()))]
 
-        OutputKeyCoords = namedtuple('OutputKeyCoords',
-                                     KeyCoords._fields + ('repno',))
+        OutputKeyCoords = namedtuple(u'OutputKeyCoords',
+                                     KeyCoords._fields + (u'repno',))
 
         global Cube  # required for pickling
         class Cube(mkd):
             def __init__(self, *args, **kwargs):
                 maxd = kwargs.get('maxdepth', len(OutputKeyCoords._fields))
                 super(Cube, self).__init__(maxdepth=maxd, noclobber=True)
-
         cubes = mkd(1, Cube)
 
-        mapper = KeyMapper(*[KeyMapper(len(c._fields))
-                             for c in OutputKeyCoords, ValCoords])
+        nvals = len(ValCoords._fields)
+        start = PARAM.maskval + 1
+        vcmapper = KeyMapper(*([count(start)] * nvals)) # Sic! We want a
+                                                        # single counter shared
+                                                        # by all the component
+                                                        # keymappers
+        del nvals
+        maxid = start
+        del start
+
         debug = PARAM.debug
-        count = 0
+        recordcount = 0
         for line in fh:
             key, val = [clas(*tpl) for clas, tpl in
                         zip((KeyCoords, ValCoords), parse_line(line))]
             subassay = get_subassay(val)
             repno = get_repno(key, val)
-            newkey, newval = mapper.getid((key + (repno,), val))
-            cubes.get((subassay,)).set(newkey, np.array(newval, dtype='int32'))
+            newkey = tuple(map(unicode, key + (repno,)))
+            newval = vcmapper.getid(val)
+            maxid = max(maxid, *newval)
+            cubes.get((subassay,)).set(newkey, newval)
             if not debug:
                 continue
-            count += 1
-            if count >= 10:
+            recordcount += 1
+            if recordcount >= 10:
                 break
 
-    kcmapper, vcmapper = mapper.mappers
+    dtype = 'uint%d' % needed_bits(maxid)
+    del maxid
+
+    kcoords = tuple(map(unicode, OutputKeyCoords._fields))
+    vcoords = tuple(map(unicode, ValCoords._fields))
+
     nonfactorial = set()
-    npcubes = dict()
 
     for subassay, cube in cubes.items():
         keys_tuple = list(cube.sortedkeysmk())
         nonfactorial.update(get_feasible(keys_tuple)[0])
 
-    # prekeydims, prevaldims = [m.mappers for m in kcmapper, vcmapper]
-
-    dimnames = OutputKeyCoords._fields
     if nonfactorial:
         subperms = map(tuple, (sorted(nonfactorial),
-                               [i for i in range(len(dimnames))
+                               [i for i in range(len(kcoords))
                                 if i not in nonfactorial]))
+        del nonfactorial
         height = len(subperms[0])
         assert height > 1
         perm = sum(subperms, ())
-        predn = [tuple([dimnames[i] for i in s]) for s in subperms]
-        dimnames = ((u'__'.join(predn[0]),) + predn[1])
 
-        ms = kcmapper.mappers
-        pkm = [tuple([ms[i] for i in s]) for s in subperms]
-        kcmapper = KeyMapper(*((KeyMapper(*pkm[0]),) + pkm[1]))
+        predn = [tuple([kcoords[i] for i in s]) for s in subperms]
+        kcoords = (predn[0],) + predn[1]
+        del predn
+        for subassay, cube in cubes.items():
+            cubes[subassay] = cube.permutekeys(perm).collapsekeys(height)
+        del perm, height
 
+    bricks = dict()
     for subassay, cube in cubes.items():
-        if nonfactorial:
-            cube = (cube.permutekeys(perm).collapsekeys(height))
-            for k, v in cube.sorteditemsmk():
-                print kcmapper[k], vcmapper[map(int, v)]
+        keys_tuple = list(cube.sortedkeysmk())
+        labels = get_labels(kcoords, keys_tuple) + \
+                 ((PARAM.extra_dim_name, vcoords),)
 
-    #     # does the cube below differ from the one produced by using
-    #     # cube.itervaluesmk()?
-    #     prekeydims, prevaldims = [m.mappers for m in keymapper, valmapper]
-    #     newshape = tuple(map(len, prekeydims + (prevaldims,)))
-    #     npcube = np.vstack(cube.sortedvaluesmk()).reshape(newshape)
-    #     npcubes[subassay] = (npcube, prekeydims, prevaldims)
+        factors = tuple(kv[1] for kv in labels)
+        shape = tuple(map(len, factors))
+        npcube = np.ones(shape=shape, dtype=dtype) * PARAM.maskval
+        for key in keys_tuple:
+            npcube[cube.index(key)] = cube.get(key)
 
-    # PickledCubes = namedtuple('PickledCubes', 'dimensions cubes')
-    # pc = PickledCubes((OutputKeyCoords._fields, ValCoords._fields), cubes)
-    # with open(outpath, 'w') as fh:
-    #     pickle.dump(pc, fh)
+        bricks[subassay] = (labels, npcube)
+
+    with h5h.Hdf5File(outpath, 'w') as h5:
+        dir0 = h5.require_group('confounders')
+
+        keymap = vcmapper.mappers
+        h5h.force_create_dataset(dir0, 'keymap', data=dump(keymap))
+        # reconstitute the above with:
+        #     keymap = yaml.load(<H5>['confounders/keymap'].value)
+        # ...where <H5> stands for some h5py.File instance
+
+        for subassay, brick in bricks.items():
+            subassay_dir = dir0.require_group(subassay)
+            labels, data = brick
+
+            subassay_dir.create_dataset('labels', data=dump(labels))
+            # reconstitute the above with:
+            #     labels = yaml.load(<H5>['confounders/<SUBASSAY>/labels'].value)
+            # ...where <H5> stands for some h5py.File instance
+
+            subassay_dir.create_dataset('data', data=data)
+
+    # with h5h.Hdf5File(outpath, 'r') as h5:
+    #     for subassay in bricks:
+    #         labelsyaml = h5['confounders/%s/labels' % subassay].value
+    #         factors = load(labelsyaml)
+    #         for k, vs in factors:
+    #             print k
+    #             for v in vs:
+    #                 print '  %s' % (v,)
+    #             print
+    #         print '\n%s\n\n' % labelsyaml
+
 
 
 if __name__ == '__main__':
