@@ -1,3 +1,34 @@
+"""
+The interaction below shows that a MultiKeyDict takes much less space
+than the corresponding dictionary of tuples.
+
+>>> dot = dict()
+>>> mkd = MultiKeyDict()
+>>> string.uppercase
+'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+>>> for tupl in itertools.product(string.uppercase, repeat=3):
+...     v = ''.join(tupl)
+...     dot[tupl] = v
+...     mkd.set(tupl, v)
+... 
+>>> mkd.get(('M', 'M', 'M'))
+'MMM'
+>>> dot.get(('M', 'M', 'M'))
+'MMM'
+>>> len(dot.keys())
+17576
+>>> len(mkd.keys())
+26
+>>> len(next(mkd.itervalues()).keys())
+26
+>>> len(next(next(mkd.itervalues()).itervalues()).keys())
+26
+>>> sys.getsizeof(dot)
+786712
+>>> sys.getsizeof(mkd)
+3352
+"""
+
 from collections import defaultdict
 from copy import deepcopy as _deepcopy
 
@@ -93,8 +124,28 @@ class MultiKeyDict(defaultdict):
 
 
     def __setitem__(self, key, val):
-        self._keyorder.add(key)        
+        self._keyorder_add(key)
         super(MultiKeyDict, self).__setitem__(key, val)
+
+
+    def _keyorder_apply(self, method, *args, **kwargs):
+        ko = self._keyorder
+        if not hasattr(ko, method):
+            newtype = tuple if type(ko) == OrderedSet else OrderedSet
+            ko = self._keyorder = newtype(ko)
+        return getattr(ko, method)(*args, **kwargs)
+
+
+    def _keyorder_add(self, v):
+        self._keyorder_apply('add', v)
+
+
+    def _keyorder_pop(self, v):
+        return self._keyorder_apply('pop', v)
+
+
+    def _keyorder_index(self, v):
+        return self._keyorder_apply('index', v)
 
 
     def has_key(self, *keys):
@@ -108,8 +159,11 @@ class MultiKeyDict(defaultdict):
 
 
     def _chkkeys(self, keys):
+        if not hasattr(keys, '__iter__'):
+            raise TypeError('keys argument must be a sequence')
         l = len(keys)
-        assert l and hasattr(keys, '__iter__')
+        if not l:
+            raise ValueError('keys argument may not be empty')
         # md = self.maxdepth
         md = self.height
         if md is not None and l > md:
@@ -131,7 +185,7 @@ class MultiKeyDict(defaultdict):
                 (isinstance(v, dict) and l == 2))
 
         if not hk:
-            self._keyorder.add(key)
+            self._keyorder_add(key)
 
         return (v if l == 1
                 else v._get(keys[1:], l - 1) if isinstance(v, MultiKeyDict)
@@ -176,7 +230,7 @@ class MultiKeyDict(defaultdict):
                 return (key,) + stat
 
         if not hk:
-            self._keyorder.add(key)
+            self._keyorder_add(key)
 
         return MultiKeyDict._OK
 
@@ -227,7 +281,7 @@ class MultiKeyDict(defaultdict):
 
 
     def __pop(self, key):
-        self._keyorder.pop(key)
+        self._keyorder_pop(key)
         return self.pop(key)
 
 
@@ -326,6 +380,33 @@ class MultiKeyDict(defaultdict):
                     yield ck + kk, vv
             else:
                 yield ck, v
+
+
+    def hasmultikey(self, keytuple):
+        try:
+            (ignored) = self.index(keytuple)
+        except ValueError, e:
+            if 'not found' in str(e):
+                return False
+            raise
+        return True
+
+
+    def index(self, keytuple):
+        lk = self._chkkeys(keytuple)
+        try:
+            return self._index(keytuple, lk)
+        except ValueError, e:
+            if str(e).endswith('not in tuple'):
+                raise ValueError("'%s' not found" % str(keytuple))
+            else:
+                raise
+            
+
+    def _index(self, keytuple, lk):
+        k0 = keytuple[0]
+        i = (self._keyorder_index(k0),)
+        return i if lk == 1 else i + self[k0]._index(keytuple[1:], lk - 1)
 
 
     def permutekeys(self, perm, deepcopy=False):
