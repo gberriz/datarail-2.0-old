@@ -7,6 +7,7 @@ import numpy as np
 from numpy import arange, array
 import fcntl
 
+import yaml
 import h5py
 
 from operator import mul
@@ -17,8 +18,8 @@ from pdb import set_trace as ST
 
 class PseudoLogger(object):
     import warnings
-    def log(self, msg):
-        warnings.warn(msg)
+    def log(self, msg, _warnings=warnings):
+        _warnings.warn(msg)
 
 LOGGER = PseudoLogger()
 
@@ -46,7 +47,9 @@ class Hdf5File(h5py.File):
 
     def __del__(self):
         self._unregister()
-        super(Hdf5File, self).__del__()
+        sup = super(Hdf5File, self)
+        if hasattr(sup, '__del__'):
+            sup.__del__()
 
 
     def close(self):
@@ -59,7 +62,7 @@ class Hdf5File(h5py.File):
 
     def _lock(self):
         from fcntl import flock, LOCK_EX, LOCK_NB
-        print 'locking %s...' % self._path
+        # LOGGER.log('locking %s...' % self._path)
         self._dummyhandle = open(self._path, 'r')
         try:
             flock(self._dummyhandle, LOCK_EX|LOCK_NB)
@@ -67,10 +70,10 @@ class Hdf5File(h5py.File):
             LOGGER.log("can't immediately write-lock the file "
                        "(%s), blocking ..." % e)
             flock(self._dummyhandle, LOCK_EX)
+
         
-
-
     REGISTRY = dict()
+
 
     def _register(self, registry=REGISTRY):
         registry[id(self)] = self
@@ -102,6 +105,11 @@ class Hdf5File(h5py.File):
 import atexit
 atexit.register(Hdf5File.shutdown)
 del atexit
+
+
+def mkdirp(h5path, components, **kwargs):
+    with Hdf5File(h5path) as h5:
+        return h5.mkdirp(components, **kwargs)
 
 
 def rm(path):
@@ -136,6 +144,14 @@ def createh5h(bn, ext=None, _default_ext='.h5'):
     return hdf.Hdf5(path=path), path
 
 
+def force_create_dataset(hdf5group, name, **kwargs):
+    try:
+        hdf5group.__delitem__(name)
+    except KeyError:
+        pass
+    return hdf5group.create_dataset(name, **kwargs)
+
+
 def add(h5h, dimspec, data, name=None):
     start = ordd((k, v[0]) for k, v in dimspec.items())
 
@@ -154,6 +170,45 @@ def mk_dimspec(dimnames, dimvals):
 
 def prod(ls, init=1):
     return reduce(mul, ls, init)
+
+
+def dump(item):
+    def _dump(item):
+        if isinstance(item, dict):
+            return dict((_dump(k), _dump(v))
+                        for k, v in item.items())
+        elif hasattr(item, '__iter__'):
+            if hasattr(item, '__len__'):
+                return map(_dump, item)
+        elif isinstance(item, int):
+            return item
+        else:
+            try:
+                return str(item)
+            except:
+                return unicode(item)
+
+        raise TypeError('unsupported type: %s' % type(item))
+
+    return yaml.dump(_dump(item), allow_unicode=True)
+
+
+def load(item):
+    def _load(item):
+        if isinstance(item, dict):
+            return dict((_load(k), _load(v))
+                        for k, v in item.items())
+        elif hasattr(item, '__iter__'):
+            if hasattr(item, '__len__'):
+                return tuple(map(_load, item))
+        elif isinstance(item, int):
+            return item
+        else:
+            return unicode(item)
+
+        raise TypeError('unsupported type: %s' % type(item))
+
+    return _load(yaml.load(item))
 
 
 def main(argv):
