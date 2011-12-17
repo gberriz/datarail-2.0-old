@@ -1,4 +1,4 @@
-from itertools import izip, tee, islice
+from itertools import izip, tee, islice, chain
 
 def mergesplit_demo(n, times, _minpreflen=3, _maxpreflen=8):
     from itertools import count, islice
@@ -96,7 +96,7 @@ def mergeiters(iters):
     return izip(*iters)
 
 
-def splititer(seqiter, n):
+def splititer(seqiter, n=None):
     """
     Split sequence iterator seqiter into n iterators.
 
@@ -104,11 +104,17 @@ def splititer(seqiter, n):
     container, such as a list or tuple, that can be addressed with a
     numerical index) of length n or greater.
 
-    n must be either a sequence of integers or a non-negative integer
-    (the cases n=0 and n=1 are pointless but permissible).  The latter
-    alternative is equivalent to passing range(n) as the second
-    argument.  For this reason, in what follows I will assume that n
-    is a sequence of integers, without loss of generality.
+    If not omitted or set to None, n must be either a sequence of
+    integers or a non-negative integer (the cases n=0 and n=1 are
+    pointless but permissible).  The latter alternative is equivalent
+    to passing range(n) as the second argument.  For this reason, in
+    what follows I will assume that n is a sequence of integers,
+    without loss of generality.  If n is omitted or None, splititer
+    will attempt to determine the length L of the sequences returned
+    by seqiter, and set n to range(L).  It does this by examining the
+    first value returned by seqiter (making sure to put it back!).
+    This heuristic will will fail with an IndexError if seqiter ever
+    returns a sequence of length less than L.
 
     Returns a tuple of r== len(n) independent iterators, representing
     positions n[0], n[1], ..., n[r] along the sequences returned by
@@ -194,6 +200,11 @@ def splititer(seqiter, n):
         (2027, 2028, 2029, 2030, 2031, 2032, 2033)
         (3031, 3032, 3033, 3034, 3035)
     """
+
+    if n is None:
+        peek = next(seqiter)
+        n = len(peek)
+        seqiter = chain((peek,), seqiter)
 
     if hasattr(n, '__iter__'):
         n = tuple(n)
