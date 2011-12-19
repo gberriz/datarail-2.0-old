@@ -11,11 +11,11 @@ True
 ...     for i in range(3 * 4 * 5)])
 False
 >>> all([index2coords(coords2index(c, (3, 4, 5)), (3, 4, 5)) == c
-...      for c in product(range(3), range(4), range(5))])
+...      for c in np.ndindex(3, 4, 5)
 True
 >>> all([index2coords(coords2index(c, (3, 4, 5), order='F'),
 ...                   (3, 4, 5), order='F') == c
-...      for c in product(range(3), range(4), range(5))])
+...      for c in np.ndindex(3, 4, 5)
 True
     """
     # the value of order keyword determines whether the last or first
@@ -98,7 +98,7 @@ if __name__ == '__main__':
     array3d = _make_test_array(*shp)
     array1d = array3d.reshape((array3d.size,))
     irng = tuple(range(np.product(shp)))
-    crng = tuple(product(*map(range, shp)))
+    crng = tuple(np.ndindex(shp))
     i2c = index2coords
     c2i = coords2index
 
