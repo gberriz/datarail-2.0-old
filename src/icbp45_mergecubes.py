@@ -103,7 +103,7 @@ def main(argv):
             h5h.force_create_dataset(subassay_dir, 'labels', data=dump(dlabels))
 
             shape = map(len, [kv[1] for kv in dlabels])
-            output[subassay] = output_datacube = np.zeros(shape=shape)
+            output[subassay] = output_datacube = np.ndarray(shape)
             del shape
 
             assay_index = factors[confounder_index].index('assay')
