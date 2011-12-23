@@ -11,7 +11,7 @@ from itertools import product
 from cartesianproduct import cartesianproduct
 from pdb import set_trace as ST
 
-from dimension import Dimension
+from toydimension import Dimension
 
 # -----------------------------------------------------------------------------
 
