@@ -53,7 +53,6 @@ def ccomplist(*fns):
 def nest(func, n, init):
     return _comp(repeat(func, n), init)
 
-
 def cnest(func, n):
     return partial(nest, func, n)
 
@@ -65,6 +64,47 @@ def nestlist(func, n, init):
 def cnestlist(func, n):
     return partial(nestlist, func, n)
 
+
+def reducelist(function, sequence, *init):
+    """
+    >>> reduce(lambda x, y: sum((x, y)), iter(range(11)))
+    55
+    >>> fn.reducelist(lambda x, y: x + y, iter(range(11)))
+    (0, 1, 3, 6, 10, 15, 21, 28, 36, 45, 55)
+
+    The first argument, function, must be callable with two arguments.
+    Therefore, the following will not work:
+
+    >>> reducelist(sum, iter(range(11)))
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+    TypeError: 'int' object is not iterable
+
+    This restriction is not serious, since it can always be remedied
+    with a lambda expression, as shown above, or more generally:
+    
+    >>> fn.reducelist(lambda x, y: takes_a_sequence((x, y)),
+    ...               iter(range(11)))
+    """
+    ret = []
+    ls = len(init)
+    if ls > 1:
+        raise TypeError, 'reducelist() takes 2 or 3 arguments ' \
+                         '(%d given)' % ls + 2
+    if ls:
+        init0 = init[0]
+        ret.append(init0)
+        sequence = (init0,) + tuple(sequence)
+    else:
+        sequence = iter(sequence)
+        ret.append(next(sequence))
+
+    for g in sequence:
+        cur = ret[-1]
+        ret.append(function(cur, g))
+
+    return tuple(ret)
+    
 
 if __name__ == '__main__':
     from string import lowercase as atoz
