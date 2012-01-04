@@ -24,6 +24,18 @@ class PseudoLogger(object):
 LOGGER = PseudoLogger()
 
 class Hdf5File(h5py.File):
+
+    # uncomment for debugging
+    #
+    # def __new__(cls, path, mode='r+', **kwargs):
+    #     ret = super(Hdf5File, cls).__new__(cls, path, mode='r+', **kwargs)
+    #     print cls, type(ret)
+    #     try:
+    #         print ret
+    #     except Exception, e:
+    #         print str(e)
+    #     return ret
+
     def __init__(self, path, mode='r+', **kwargs):
         self._mode = mode
         self._path = path
