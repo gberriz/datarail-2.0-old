@@ -76,7 +76,7 @@ def main(argv):
     #         ├── data
     #         └── labels
 
-    with h5h.Hdf5File(PARAM.path_to_confounders, 'r+') as h5:
+    with h5h.Hdf5File(PARAM.path_to_h5, 'r+') as h5:
 
         keymap = [dict((v, k) for k, v in d.items())
                   for d in load(h5['confounders/keymap'].value)]
