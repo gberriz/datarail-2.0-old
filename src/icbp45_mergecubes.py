@@ -7,6 +7,7 @@ from ordereddict import OrderedDict as orddict
 from h5helper import dump, load
 import h5helper as h5h
 from factor_nset import get_feasible
+import hyperbrick as hb
 
 from pdb import set_trace as ST
 
@@ -100,8 +101,6 @@ def main(argv):
             dlabels = list(labels.items())
             dlabels[confounder_index] = PARAM.extra_dim
 
-            h5h.force_create_dataset(subassay_dir, 'labels', data=dump(dlabels))
-
             shape = map(len, [kv[1] for kv in dlabels])
             output[subassay] = output_datacube = np.ndarray(shape)
             del shape
@@ -115,7 +114,8 @@ def main(argv):
                 kk = tuple([f[i] for f, i in zip(labels.values(), ii)])
                 output_datacube[ii] = dcube.get((assay, kk[0][0]) + kk[1:])
 
-            h5h.force_create_dataset(subassay_dir, 'data', data=output_datacube)
+            brick = hb.HyperBrick(output_datacube, dlabels)
+            h5h.write_hyperbrick(subassay_dir, brick)
 
     return 0
 

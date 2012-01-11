@@ -223,6 +223,11 @@ def load(item):
     return _load(yaml.load(item))
 
 
+def write_hyperbrick(h5grp, brick):
+    force_create_dataset(h5grp, 'labels', data=dump(brick.labels))
+    force_create_dataset(h5grp, 'data', data=brick.data)
+    return
+
 def main(argv):
     from itertools import product
     from string import ascii_lowercase as lc, ascii_uppercase as uc
