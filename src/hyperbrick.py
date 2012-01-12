@@ -21,13 +21,13 @@ class HyperBrickDimensions(tuple):
     def __call__(self, key):
         return self.__dict__[key]
 
-    def get(self, key, default=None):
+    def _get(self, key, default=None):
         return self.__dict__.get(key, default)
 
-    def index(self, key):
+    def _index(self, key):
         return self.__indexlookup[key]
 
-    def replace(self, key, value=None):
+    def _replace(self, key, value=None):
         if value is None:
             if not isinstance(key, di.Dimension):
                 raise TypeError, 'single argument must be a Dimension object'
@@ -44,11 +44,11 @@ class HyperBrickDimensions(tuple):
             raise TypeError, 'unknown dimension: %r' % key
             
         as_list = list(self)
-        as_list[self.index(key)] = value
+        as_list[self._index(key)] = value
         return type(self)(as_list)
 
     @property
-    def names(self):
+    def _names(self):
         return tuple(d.name for d in self)
 
     def __contains__(self, key):
@@ -103,8 +103,7 @@ class HyperBrick(object):
                 return slice(start, stop, step)
             return pa
         try:
-            ii = (pa if isinstance(pa, int)
-                  else dimvals.index(pa))
+            ii = (pa if isinstance(pa, int) else dimvals.index(pa))
         except IndexError:
             raise IndexError, 'invalid level for "%s": %s' % (dimname, pa)
 
@@ -241,8 +240,8 @@ class HyperBrick(object):
                 if len(set((l[0] for l in ls))) > 1:
                     raise TypeError, ('concatenation requires equally '
                                       'named dimensions')
-                newdims = self._dims.replace(ls[0][0],
-                                             sum((l[1] for l in ls), ()))
+                newdims = self._dims._replace(ls[0][0],
+                                              sum((l[1] for l in ls), ()))
             else:
                 if len(set(ls)) > 1:
                     raise TypeError, ('concatenation requires equal '
@@ -253,7 +252,7 @@ class HyperBrick(object):
 
 
     def align(self, other,
-              _pad=lambda d: (d[0], (di.Dimension.NULL_LEVEL,)),
+              _pad=lambda d: di.Dimension._NullDimension(d[0]),
               _key=lambda t: t[0]):
 
         di00 = other.labels
@@ -330,7 +329,7 @@ def propagate_controls(brick):
     newdims = ms_projn._dims
     for dimname in sel_labels.keys():
         if dimname in origdims:
-            newdims = newdims.replace(origdims(dimname))
+            newdims = newdims._replace(origdims(dimname))
         
     zero_mu_sigma = ms_projn.extrude(newdims)
 
@@ -339,7 +338,7 @@ def propagate_controls(brick):
     #   resulting slab with the existing brick
     ret = brick
     for dim, level in proj_labels.items():
-        newdims = ret._dims.replace(dim, (level,))
+        newdims = ret._dims._replace(dim, (level,))
         newslab = zero_mu_sigma.extrude(newdims)
         ret = newslab.concatenate(ret, dim=dim)
 

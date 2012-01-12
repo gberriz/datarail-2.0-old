@@ -6,19 +6,16 @@ from pdb import set_trace as ST
 def _checkargs(func, *args, **kw):
     return func
 
+class NullLevel(object):
+    def __repr__(self):
+        return 'NULL_LEVEL'
+
+NULL_LEVEL = NullLevel()
 
 class Dimension(tuple):
-    class NullLevel(object):
-        def __repr__(self):
-            return 'NULL_LEVEL'
-
-    NULL_LEVEL = NullLevel()
-
-
     @classmethod
-    def NullDimension(cls, name, _null=NULL_LEVEL):
+    def _NullDimension(cls, name, _null=NULL_LEVEL):
         return cls(name, (_null,))
-        
 
     @_checkargs
     def __new__(cls, name, levels):
