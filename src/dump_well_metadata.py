@@ -19,6 +19,7 @@ from icbp45_utils import is_valid_rc, rc_path_iter, scrape_coords
 from noclobberdict import NoClobberDict
 from multidict import MultiDict
 from orderedset import OrderedSet
+import ordereddict as od
 
 from pdb import set_trace as ST
 
@@ -910,7 +911,8 @@ class Layout(object):
                 print '|'.join(vs + [l.value(w)])
 
 
-    def dump(self, wanted=None, width=None, twidth=None, vdiv=u'|'):
+    def dump(self, wanted=None, width=None, twidth=None, vdiv=u'|',
+             tight=False):
 
         if not (width is None or twidth is None):
             raise ValueError('at most one of width and twidth can be '
@@ -972,8 +974,11 @@ class Layout(object):
                        wellrows)
 
             if width is None:
-                w = min([maxwidth,
-                         max(map(len, cols + map(unicode, _flatten(rows, 1))))])
+                if tight:
+                    w = min([maxwidth,
+                             max(map(len, cols + map(unicode, _flatten(rows, 1))))])
+                else:
+                    w = maxwidth
             else:
                 w = width
 
@@ -1081,7 +1086,7 @@ def default_layouts():
     layer = deepcopy(LAYER)
     convert(layer)
 
-    layout = dict()
+    layout = od.OrderedDict()
 
     # KLUGE
     pfxs = ['GF', 'CK', '20100925_HCC1806/GF1']
@@ -1128,9 +1133,14 @@ DEFAULT_LAYOUTS = default_layouts()
 def dump_default_layout():
     layout = DEFAULT_LAYOUTS
     l0 = layout.values()[0]
-    for c in [x.category for x in l0.tlayers + l0.rlayers]:
-        for name, lo in sorted(layout.items()):
-            print name
+    for layer in l0.tlayers + l0.rlayers:
+        c = layer.category
+        u = layer.units
+        for name, lo in layout.items():
+            hdr = '%s: %s' % (name, c)
+            if u is not None:
+                hdr += ' (%s)' % u
+            print hdr
             lo.dump(wanted=[c])
             print
 
