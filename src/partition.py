@@ -30,3 +30,10 @@ def ipartition(data, pred):
     """
     t1, t2 = it.tee(data)
     return [it.ifilter(pred, t1), it.ifilterfalse(pred, t2)]
+
+
+def kgroups(l, k):
+    """ Yield successive k-sized groups from l.
+    """
+    for i in xrange(0, len(l), k):
+        yield l[i:i+k]

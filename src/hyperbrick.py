@@ -175,6 +175,8 @@ class HyperBrick(object):
         return zip(dimnames, tuple(dv.__getitem__(sl) for
                                    dv, sl in zip(dimvals, slices)))
 
+    def _tolevels(self, idx):
+        return tuple(l[1][0] for l in self._tolabels(idx))
             
     def __call__(self, *args, **kwargs):
         """

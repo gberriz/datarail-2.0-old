@@ -441,6 +441,10 @@ for root in 'rc platename cell_line_assay fieldname'.split():
 #     return _path_iter(path, is_valid_fieldname)
 
 
+def greek_to_english(s, map_={u'\u03b1': u'a', u'\u03b3': u'g',
+                              u'\u03ba': u'k'}):
+    return u''.join([map_.get(c, c) for c in list(s)])
+
 if __name__ == '__main__':
     import doctest
     doctest.testmod()

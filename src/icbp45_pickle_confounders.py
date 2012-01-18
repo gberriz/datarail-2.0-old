@@ -249,6 +249,7 @@ def main(argv):
     #             print
     #         print '\n%s\n\n' % labelsyaml
 
+    return 0
 
 
 if __name__ == '__main__':
