@@ -973,11 +973,12 @@ class Layout(object):
 
             if width is None:
                 w = min([maxwidth,
-                         max(map(len, cols + _flatten(rows)))])
+                         max(map(len, cols + map(unicode, _flatten(rows, 1))))])
             else:
                 w = width
 
-            vs = map(partial(strs2cols, width=w), rows)
+            vs = map(partial(strs2cols, width=w),
+                     [[unicode(c) for c in r] for r in rows])
             mr = max(map(len, sum(vs, [])))
             for r in vs:
                 for c in r:
