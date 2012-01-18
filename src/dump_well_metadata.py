@@ -141,27 +141,27 @@ KLUGE = {
   u'530_antibody': {
     u'units': None,
     u'values': set([
-      Antibody(u'pAkt-m-488', 'wholecell'),
-      Antibody(u'pErk-m-488', 'wholecell'),
-      Antibody(u'pJNK-m-488', 'wholecell'),
-      Antibody(u'pP38-m-488', 'wholecell'),
-      Antibody(u'NF-κB-m-488', 'ncratio'),
-      Antibody(u'pErk-CK-m-488', 'wholecell'),
-      Antibody(u'STAT1-r-488', 'wholecell'),
-      Antibody(u'STAT3-r-488', 'wholecell'),
+      Antibody(u'pAkt-m-488', u'wholecell'),
+      Antibody(u'pErk-m-488', u'wholecell'),
+      Antibody(u'pJNK-m-488', u'wholecell'),
+      Antibody(u'pP38-m-488', u'wholecell'),
+      Antibody(u'NF-κB-m-488', u'ncratio'),
+      Antibody(u'pErk-CK-m-488', u'wholecell'),
+      Antibody(u'STAT1-r-488', u'wholecell'),
+      Antibody(u'STAT3-r-488', u'wholecell'),
     ]),
   },
   u'685_antibody': {
     u'units': None,
     u'values': set([
-      Antibody(u'pErk-r-647', 'wholecell'),
-      Antibody(u'pAkt-r-647', 'wholecell'),
-      Antibody(u'pP38-r-647', 'wholecell'),
-      Antibody(u'pJNK-r-647', 'wholecell'),
-      Antibody(u'STAT1-r-647', 'wholecell'),
-      Antibody(u'STAT3-r-647', 'wholecell'),
-      Antibody(u'NF-κB-m-647', 'ncratio'),
-      Antibody(u'pErk-CK-m-647', 'wholecell'),
+      Antibody(u'pErk-r-647', u'wholecell'),
+      Antibody(u'pAkt-r-647', u'wholecell'),
+      Antibody(u'pP38-r-647', u'wholecell'),
+      Antibody(u'pJNK-r-647', u'wholecell'),
+      Antibody(u'STAT1-r-647', u'wholecell'),
+      Antibody(u'STAT3-r-647', u'wholecell'),
+      Antibody(u'NF-κB-m-647', u'ncratio'),
+      Antibody(u'pErk-CK-m-647', u'wholecell'),
     ]),
   },
 }
@@ -1016,7 +1016,9 @@ def _flatten(ll, levels=None):
     def __notiterable(x):
         return not hasattr(x, '__iter__')
 
-    def __r(ll, levels=None):
+    # _calldepth is intended only for debugging
+    def __r(ll, levels=None, _calldepth=0):
+        # print 'calldepth = %d' % _calldepth
         if __notiterable(ll):
             msg = ('argument 1 to _flatten must support iteration'
                    if levels is None else
@@ -1024,9 +1026,9 @@ def _flatten(ll, levels=None):
             raise TypeError(msg)
 
         if levels > 0:
-            r = partial(__r, levels=levels-1)
+            r = partial(__r, levels=levels-1, _calldepth=_calldepth+1)
         elif levels is None and not any(map(__notiterable, ll)):
-            r = __r
+            r = partial(__r, _calldepth=_calldepth+1)
         else:
             assert levels <= 0 or any(map(__notiterable, ll))
             return ll
