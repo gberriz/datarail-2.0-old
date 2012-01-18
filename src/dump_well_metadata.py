@@ -87,7 +87,7 @@ class Antibody(tuple):
         return self.target
 
 KLUGE = {
-  u'ligand': {
+  u'ligand_name': {
     u'units': None,
     u'values': set([
       u'VEGFF',
@@ -166,7 +166,7 @@ KLUGE = {
 }
 
 LAYER = {
-  u'ligand': {
+  u'ligand_name': {
     u'GF': {
       u'VEGFF':   u'A*-6',
       u'EGF':     u'B*-6',
@@ -1103,7 +1103,7 @@ def default_layouts():
 
             tls = []
             rls = []
-            ks = ('ligand ligand_concentration time '
+            ks = ('ligand_name ligand_concentration time '
                   '530_antibody 685_antibody'.split())
 
             for category in ks:
