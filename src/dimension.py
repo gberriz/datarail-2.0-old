@@ -30,10 +30,10 @@ class Dimension(tuple):
         self.__len = l = len(levels)
         self.__index = dict(zip(levels, range(l)))
 
+    def indexes(self, spec):
+        return tuple(map(self.__toindex, spec))
 
     def index(self, spec):
-        if iss.issequence(spec):
-            return tuple(map(self.__toindex, spec))
         if spec is None:
             return slice(0, self.__len, None)
         if isinstance(spec, slice):
