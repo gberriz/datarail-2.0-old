@@ -7,7 +7,6 @@ import h5py
 import traceback as tb
 
 import dimension as di
-import issequence as iss
 import h5helper as h5h
 import align as al
 
@@ -271,27 +270,6 @@ class HyperBrick(object):
                                           (di11, di01)))
 
 
-def mu_sigma(box, axes, newdim=(u'stat', (u'mean', u'stddev'))):
-    if not iss.issequence(axes):
-        axes = axes.split()
-
-    axes = tuple(map(box._toaxis, axes))
-    inshape = box.shape
-    nonaxes = tuple([i for i in range(len(inshape))
-                     if i not in set(axes)])
-    permuted = box._data.transpose(nonaxes + axes)
-
-    newshape = tuple(inshape[i] for i in nonaxes) + (-1,)
-    reshaped = permuted.reshape(newshape)
-
-    outshape = newshape[:-1] + (1,)
-    mean = reshaped.mean(axis=-1).reshape(outshape)
-    std = reshaped.std(axis=-1).reshape(outshape)
-
-    newdims = map(box._fromaxis, nonaxes) + [newdim]
-
-    return HyperBrick(np.concatenate((mean, std), axis=-1), newdims)
-                      
 ICBP45H5 = '/home/gfb2/IR/icbp45.h5'
 ICBP45PKL = '/home/gfb2/IR/icbp45.pkl'
 
@@ -314,37 +292,6 @@ def extrude(base, newshape):
     extrusion = np.empty(newshape, dtype=base.dtype)
     extrusion[...] = base
     return extrusion
-
-
-def propagate_controls(brick):
-    sel_labels = dict(ligand_name=u'CTRL', stat=u'mean')
-    proj_labels = dict(ligand_concentration=u'0', time=u'0')
-
-    ctrl = brick(**sel_labels).squeeze()
-    ms_projn, toss = mu_sigma(ctrl, proj_labels.keys()).align(brick)
-    assert id(toss) == id(brick)
-    del toss
-
-    # create a new slab (mu_sigma_all) by replicating the mu_sigma slab
-    #   along the selection dimensions
-    origdims = brick._dims
-    newdims = ms_projn._dims
-    for dimname in sel_labels.keys():
-        if dimname in origdims:
-            newdims = newdims._replace(origdims(dimname))
-        
-    zero_mu_sigma = ms_projn.extrude(newdims)
-
-    # sequentially replicate mu_sigma_all slab along all the mu_sigma
-    #   projection labels (i.e. ligand_concentration and time), and merge the
-    #   resulting slab with the existing brick
-    ret = brick
-    for dim, level in proj_labels.items():
-        newdims = ret._dims._replace(dim, (level,))
-        newslab = zero_mu_sigma.extrude(newdims)
-        ret = newslab.concatenate(ret, dim=dim)
-
-    return ret
 
 
 def doit():
