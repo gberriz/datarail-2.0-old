@@ -43,6 +43,7 @@ del __d
 
 
 def _parseargs(argv):
+    argv = tuple(unicode(a) for a in argv)
     path_to_expmap = argv[1]
     assay = argv[2]
     subassay = argv[3]
@@ -240,9 +241,7 @@ def main(argv):
             target = get_target(val)
             signal = get_signal(rawdata, target)
             data = mean_and_stddev(signal)
-            cube.set(tuple(unicode(k).encode(PARAM.encoding)
-                           for k in key), data)
-
+            cube.set(tuple(unicode(k) for k in key), data)
 
     assert cube, 'empty cube'
     save(cube)
