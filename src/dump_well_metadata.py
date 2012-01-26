@@ -918,6 +918,7 @@ class Layout(object):
             raise ValueError('at most one of width and twidth can be '
                              'different from None')
 
+        # ST()
         if width is None and twidth is None:
             from os import environ
             twidth = int(environ.get('COLUMNS', 89)) - 2
@@ -946,6 +947,7 @@ class Layout(object):
         rowh = map(rj, rowh)
         topleft = blankrowhdr = rj(u'')
 
+        # ST()
         if twidth is not None:
             assert width == None
             # (twidth - rowhw)/ncols == width + lvdiv >= minwidth + lvdiv
@@ -972,7 +974,7 @@ class Layout(object):
 
             rows = map(lambda row: map(lambda well: l.value(well), row),
                        wellrows)
-
+            # ST()
             if width is None:
                 if tight:
                     w = min([maxwidth,
@@ -985,6 +987,7 @@ class Layout(object):
             vs = map(partial(strs2cols, width=w),
                      [[unicode(c) for c in r] for r in rows])
             mr = max(map(len, sum(vs, [])))
+
             for r in vs:
                 for c in r:
                     padlns(c, mr)
@@ -1132,7 +1135,7 @@ def default_layouts():
         
 DEFAULT_LAYOUTS = default_layouts()
 
-def dump_default_layout():
+def dump_default_layout(**kwargs):
     layout = DEFAULT_LAYOUTS
     l0 = layout.values()[0]
     for layer in l0.tlayers + l0.rlayers:
@@ -1143,7 +1146,7 @@ def dump_default_layout():
             if u is not None:
                 hdr += ' (%s)' % u
             print hdr
-            lo.dump(wanted=[c])
+            lo.dump(wanted=[c], **kwargs)
             print
 
 
