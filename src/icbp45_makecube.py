@@ -166,51 +166,55 @@ def get_subassay(subrecord):
     return icbp45_utils.get_subassay(subrecord.plate)
 
 
+def _save(cube, key, path):
+    # 'r+' apparently does not create the file if it doesn't
+    # already exist, so...
+    with open(path, 'a'):
+        pass
+
+    with open(path, 'r+') as fh:
+        try:
+            flock(fh, LOCK_EX|LOCK_NB)
+        except IOError, e:
+            warnings.warn("can't immediately write-lock "
+                          "the file (%s), blocking ..." % e)
+            flock(fh, LOCK_EX)
+
+        fh.seek(0, 0)
+
+        try:
+            cubedict = pickle.load(fh)
+        except EOFError:
+            cubedict = mkd()
+
+        try:
+            cubedict.set(key, cube)
+        except Exception, e:
+            import traceback as tb
+            tb.print_exc()
+            print 'type:', type(e)
+            print 'str:', str(e)
+            print 'message: <<%s>>' % e.message
+            cubedict.delete(key)
+            cubedict.set(key, cube)
+
+        fh.seek(0, 0)
+        pickle.dump(cubedict, fh)
+
+
+def _skip(key, val, *extra):
+    # key is not needed in this case, but kept here as a reminder of
+    # the function's general form
+    subassay, assay = extra
+    return not (val.assay == assay and get_subassay(val) == subassay)
+
+
 def main(argv):
     _parseargs(argv)
 
     path = PARAM.path_to_expmap
 
-    def skip(key, val, assay=PARAM.assay, subassay=PARAM.subassay):
-        return not (val.assay == assay and get_subassay(val) == subassay)
-
-    def save(cube, key=(PARAM.subassay, PARAM.assay),
-             path=PARAM.output_path):
-
-        # 'r+' apparently does not create the file if it doesn't
-        # already exist, so...
-        with open(path, 'a'):
-            pass
-
-        with open(path, 'r+') as fh:
-            try:
-                flock(fh, LOCK_EX|LOCK_NB)
-            except IOError, e:
-                warnings.warn("can't immediately write-lock "
-                              "the file (%s), blocking ..." % e)
-                flock(fh, LOCK_EX)
-
-            fh.seek(0, 0)
-
-            try:
-                cubedict = pickle.load(fh)
-            except EOFError:
-                cubedict = mkd()
-
-            try:
-                cubedict.set(key, cube)
-            except Exception, e:
-                import traceback as tb
-                tb.print_exc()
-                print 'type:', type(e)
-                print 'str:', str(e)
-                print 'message: <<%s>>' % e.message
-                cubedict.delete(key)
-                cubedict.set(key, cube)
-
-            fh.seek(0, 0)
-            pickle.dump(cubedict, fh)
-
+    _basekey = (PARAM.subassay, PARAM.assay)
 
     with open(path) as fh:
         KeyCoords, ValCoords = [namedtuple(n, c)
@@ -221,11 +225,9 @@ def main(argv):
         cube = mkd(len(KeyCoords._fields), noclobber=True)
         for line in fh:
             key, val = [clas(*tpl) for clas, tpl in
-                        zip((KeyCoords, ValCoords),
-                            parse_line(line))]
+                        zip((KeyCoords, ValCoords), parse_line(line))]
 
-            if skip(key, val):
-                continue
+            if _skip(key, val, *_basekey): continue
 
             data_path = get_data_path(val)
             sdc_paths = get_sdc_paths(data_path)
@@ -241,7 +243,7 @@ def main(argv):
             cube.set(tuple(unicode(k) for k in key), data)
 
     assert cube, 'empty cube'
-    save(cube)
+    _save(cube, _basekey, PARAM.output_path)
 
     return 0
 
