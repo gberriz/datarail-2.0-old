@@ -86,11 +86,11 @@ def convert(s):
 
 
 def parse_segment(segment, _sep=PARAM.sep[1]):
-    return tuple(map(convert, segment.split(_sep)))
+    return tuple(convert(x) for x in segment.split(_sep))
 
 
 def parse_line(line, _sep=PARAM.sep[0]):
-    return tuple(map(parse_segment, line.strip().split(_sep)))
+    return tuple(parse_segment(s) for s in line.strip().split(_sep))
 
 
 def parse_antibody_spec(antibody_spec,
@@ -223,6 +223,7 @@ def main(argv):
         assert 'field' not in ValCoords._fields
 
         cube = mkd(len(KeyCoords._fields), noclobber=True)
+        buf = []
         for line in fh:
             key, val = [clas(*tpl) for clas, tpl in
                         zip((KeyCoords, ValCoords), parse_line(line))]
@@ -240,7 +241,9 @@ def main(argv):
             target = get_target(val)
             signal = get_signal(rawdata, target)
             data = mean_and_stddev(signal)
-            cube.set(tuple(unicode(k) for k in key), data)
+            ukey = tuple(unicode(k) for k in key)
+            cube.set(ukey, data)
+            buf.append(data)
 
     assert cube, 'empty cube'
     _save(cube, _basekey, PARAM.output_path)
