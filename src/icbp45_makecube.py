@@ -196,21 +196,18 @@ def main(argv):
                 cubedict = pickle.load(fh)
             except EOFError:
                 cubedict = mkd()
+
+            try:
+                cubedict.set(key, cube)
             except Exception, e:
-                cubedict = mkd()
                 import traceback as tb
                 tb.print_exc()
                 print 'type:', type(e)
                 print 'str:', str(e)
                 print 'message: <<%s>>' % e.message
-
-            try:
-                # this precaution is necessary due to a bug in MKD...
                 cubedict.delete(key)
-            except KeyError, e:
-                pass
+                cubedict.set(key, cube)
 
-            cubedict.set(key, cube)
             fh.seek(0, 0)
             pickle.dump(cubedict, fh)
 
