@@ -7,6 +7,7 @@ import cPickle as pickle
 from fcntl import flock, LOCK_EX, LOCK_NB
 import warnings
 
+from nodup import NoDup
 from memoized import memoized
 from sdc_extract import _extract_wells_data
 from multikeydict import MultiKeyDict as mkd
@@ -39,6 +40,7 @@ __d.update(
 
 __d['wanted_templates'] = map(lambda s: '%s_w%%s (Mean)' % s,
                               PARAM.wanted_feature_types)
+
 del __d
 
 
@@ -51,8 +53,7 @@ def _parseargs(argv):
 
     d = dict()
     l = locals()
-    params = ('path_to_expmap assay subassay '
-              'output_path ')
+    params = ('path_to_expmap assay subassay output_path ')
     for p in params.split():
         d[p] = l[p]
     _updateparams(d)
@@ -224,9 +225,14 @@ def main(argv):
 
         cube = mkd(len(KeyCoords._fields), noclobber=True)
         buf = []
+        current = [ost.OrderedSet() for _ in KeyCoords]
+        levels = [ost.OrderedSet() for _ in KeyCoords]
         for line in fh:
             key, val = [clas(*tpl) for clas, tpl in
                         zip((KeyCoords, ValCoords), parse_line(line))]
+
+            # for i, k in enumerate(key):
+            #     if k != current
 
             if _skip(key, val, *_basekey): continue
 
