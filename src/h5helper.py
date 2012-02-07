@@ -13,6 +13,7 @@ import h5py
 from operator import mul
 from ordereddict import OrderedDict as ordd
 import hdf
+import hyperbrick as hb
 
 from pdb import set_trace as ST
 
@@ -227,6 +228,13 @@ def write_hyperbrick(h5grp, brick):
     force_create_dataset(h5grp, 'labels', data=dump(brick.labels))
     force_create_dataset(h5grp, 'data', data=brick.data)
     return
+
+
+def read_hyperbrick(h5grp):
+    data = np.array(h5grp['data'])
+    labels = load(h5grp['labels'].value)
+    return hb.HyperBrick(data, labels)
+
 
 def main(argv):
     from itertools import product
