@@ -1,10 +1,11 @@
+import sys
 import csv
 from collections import defaultdict
 import re
 from pdb import set_trace as ST
 
 from noclobberdict import NoClobberDict
-
+import dimension as di
 
 class Column(list):
     def __new__(cls, name, iterable=[], units=None):
@@ -125,7 +126,7 @@ def write_datapflex(path, treatment_columns, data_columns, info_columns=()):
 
     all_colsets = treatment_columns, noheader_columns, data_subcolumns
     all_columns = sum(all_colsets, ())
-    headers = map(col_header, all_columns)
+    headers = tuple(col_header(c) for c in all_columns)
 
     def ith_subrecord(i, colset):
         return tuple(c[i] for c in colset)
@@ -153,7 +154,7 @@ def write_datapflex(path, treatment_columns, data_columns, info_columns=()):
     else:
         with open(path, 'w') as outfh:
             print_table(outfh)
-            
+
 
 # def _malformed(reason):
 #     return TypeError('malformed DataPflex file: %s' % reason)
