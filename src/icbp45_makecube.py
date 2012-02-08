@@ -30,15 +30,17 @@ __d.update(
       'hdf5_ext': '.h5',
       'sdc_basename': 'Data',
       'path_comp_attribs': 'assay plate well'.split(),
-      'wanted_feature_types': 'Whole Nucleus Cyto'.split(),
+      'wanted_feature_types': [['Whole'], 'Nucleus Cyto'.split()],
       'data_coords': namedtuple('DataCoords', 'mean stddev'),
       'antibody_class': namedtuple('Antibody', 'target species wavelength'),
       'require_nucleus_mean_to_cyto_mean_ratio': set((u'NF-κB',)),
       'extra_dim': {'stat': ('mean', 'stddev')},
     })
 
-__d['wanted_templates'] = map(lambda s: '%s_w%%s (Mean)' % s,
-                              PARAM.wanted_feature_types)
+__d['wanted_templates'] = [['%s_w%%s (Mean)' % s for s in ft]
+                           for ft in PARAM.wanted_feature_types]
+
+del __d['wanted_feature_types']
 del __d
 
 
@@ -117,9 +119,12 @@ def get_sdc_paths(data_path,
     return sorted(glob(op.join(data_path, _pat, _basename)))
 
 
-def get_wanted_features(channel):
+def get_wanted_features(channel, target):
+    i = 1 \
+        if target in PARAM.require_nucleus_mean_to_cyto_mean_ratio \
+        else 0
     c = unicode(channel)
-    return [t % c for t in PARAM.wanted_templates]
+    return [t % c for t in PARAM.wanted_templates[i]]
 
 
 def get_rawdata(sdc_paths, wanted_features):
@@ -143,17 +148,17 @@ def get_extractor(target):
         def _cull_zeros(d, i):
             return d[d[:, i] > 0.]
 
-        nidx, cidx = [PARAM.wanted_feature_types.index(f)
-                      for f in 'Nucleus', 'Cyto']
-
         def _extract(rawdata):
-            culled = _cull_zeros(rawdata, cidx)
-            return culled[:, nidx]/culled[:, cidx]
+            sh = rawdata.shape
+            assert len(sh) == 2 and sh[-1] == 2
+            culled = _cull_zeros(rawdata, 1)
+            return culled[:, 0]/culled[:, 1]
 
     else:
-        idx = PARAM.wanted_feature_types.index('Whole')
         def _extract(rawdata):
-            return rawdata[:, idx]
+            sh = rawdata.shape
+            assert len(sh) == 2 and sh[-1] == 1
+            return rawdata[:, 0]
 
     return _extract
 
@@ -233,12 +238,15 @@ def main(argv):
             data_path = get_data_path(val)
             sdc_paths = get_sdc_paths(data_path)
 
-            wanted_features = get_wanted_features(val.channel)
+            target = get_target(val)
+
+            wanted_features = get_wanted_features(val.channel, target)
+            print target, wanted_features
             rawdata = get_rawdata(sdc_paths, wanted_features)
             assert rawdata.size
+
             assert len(wanted_features) == rawdata.shape[1]
 
-            target = get_target(val)
             signal = get_signal(rawdata, target)
             data = mean_and_stddev(signal)
             ukey = tuple(unicode(k) for k in key)
