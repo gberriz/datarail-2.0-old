@@ -1,11 +1,8 @@
+from pdb import set_trace as ST
+
 _NODUPERR = TypeError('Duplicates are not allowed')
 
-
 class NoDup(list):
-
-    def __new__(cls, seq=[]):
-        return list.__new__(cls)
-
 
     # mutators
 
@@ -14,19 +11,10 @@ class NoDup(list):
         >>> NoDup([1, 2, 2, 1])
         NoDup([1, 2])
         """
+
+        super(NoDup, self).__setitem__(slice(0, len(self)), ())
         self.__set = set()
         self.extend(seq)
-
-
-    def append(self, item):
-        """
-        >>> x = NoDup([1, 2]); x.append(1); x == NoDup([1, 2])
-        True
-        """
-
-        if not item in self.__set:
-            super(NoDup, self).append(item)
-            self.__set.add(item)
         # self._consistency_check()
 
 
@@ -41,19 +29,60 @@ class NoDup(list):
         TypeError: Duplicates are not allowed
         >>> x[0] = 1; x
         NoDup([1, 3])
+        >>> x = NoDup(range(5))
+        >>> x[1:3] = [5, 6, 7]; x
+        NoDup([0, 5, 6, 7, 3, 4])
+        >>> x[1:3] = [8, 8]
+        Traceback (most recent call last):
+        ...
+        TypeError: Duplicates are not allowed
+        >>> x[1:3] = [0, 8]
+        Traceback (most recent call last):
+        ...
+        TypeError: Duplicates are not allowed
+        >>> x
+        NoDup([0, 5, 6, 7, 3, 4])
         """
 
-        # FIXME: implement support for the case where i is a SLICE
+        selfset = self.__set
 
-        if item in self.__set:
-            if item != self[i]: raise _NODUPERR
+        if isinstance(i, slice):
+            newitems = set(item)
+            goners = set(self[i])
+
+            # the first test below, namely,
+            #
+            #   len(newitems) < len(item)
+            #
+            # detects duplicates in item; the second one, namely,
+            # whether the set
+            #
+            # (selfset - goners).intersection(newitems)
+            #
+            # is null, detects overlaps (i.e. a non-null intersection)
+            # between the elements in item (now in the set newitem)
+            # and the remaining elements of self (i.e. those that
+            # remain after removing from the current elements in self,
+            # as given in selfset, those elements that currently
+            # occupy the positions specified by the slice i, which now
+            # are also those in the goners set; a true value for
+            # either test represents a violation of the uniqueness
+            # constraint, so an exception is raised.
+
+            if ((len(newitems) < len(item)) or
+                (selfset - goners).intersection(newitems)):
+                raise _NODUPERR
+            super(NoDup, self).__setitem__(i, item)
+            selfset.difference_update(goners)
+            selfset.update(newitems)
         else:
-            # goners = self[i] if isinstance(i, slice) else [self[i]]
+            if item in selfset and item != self[i]:
+                raise _NODUPERR
             goner = self[i]
             super(NoDup, self).__setitem__(i, item)
-            s = self.__set
-            s.remove(goner)
-            s.add(item)
+            selfset.remove(goner)
+            selfset.add(item)
+
         # self._consistency_check()
 
 
@@ -71,95 +100,56 @@ class NoDup(list):
         # self._consistency_check()
 
 
-    def insert(self, i, item):
-        """
-        >>> x = NoDup([1, 2])
-        >>> x.insert(1, 0); x
-        NoDup([1, 0, 2])
-        >>> x.insert(2, 1)
-        Traceback (most recent call last):
-        ...
-        TypeError: Duplicates are not allowed
-        >>> x._NoDup__set
-        set([0, 1, 2])
-        """
-
-        if item in self.__set: raise _NODUPERR
-        super(NoDup, self).insert(i, item)
-        self.__set.add(item)
-        # self._consistency_check()
-
-
-    def extend(self, other):
-        """
-	>>> x = NoDup([1, 2, 3]); x.extend([5, 3, 2, 5, 4, 1]); x
-	NoDup([1, 2, 3, 5, 4])
-        """
-
-        for o in other: self.append(o)
-        # self._consistency_check()
-
-
-    def remove(self, item):
-        """
-        >>> x = NoDup([1, 2, 3]); x.remove(2); x
-        NoDup([1, 3])
-        """
-
-        super(NoDup, self).remove(item)
-        self.__set.remove(item)
-        # self._consistency_check()
-
-
     def __setslice__(self, i, j, other):
         """
-        >>> x = NoDup(range(10)); x
-        NoDup([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-        >>> x[4:8] = [10, 11]; x
-        NoDup([0, 1, 2, 3, 10, 11, 8, 9])
-        >>> x[3:6] = [0]
-        Traceback (most recent call last):
-        ...
-        TypeError: Duplicates are not allowed
+        >>> a = NoDup([0, 1]); a[-3:-1] = [3]; a
+        NoDup([3, 1])
+        >>> a = NoDup([0, 1]); a[-3:-1] = [2, 3]; a
+        NoDup([2, 3, 1])
+        >>> a = NoDup([0, 1]); a[0:1] = [2, 3]; a
+        NoDup([2, 3, 1])
+        >>> a = NoDup([0, 1]); a[0:2] = [2, 3]; a
+        NoDup([2, 3])
+        >>> a = NoDup([0, 1]); a[1:2] = [2, 3]; a
+        NoDup([0, 2, 3])
+        >>> a = NoDup([0, 1]); a[-1:2] = [2, 3]; a
+        NoDup([0, 2, 3])
+        >>> a = NoDup([0, 1]); a[-3:2] = [2, 3]; a
+        NoDup([2, 3])
+        >>> a = NoDup([0, 1]); a[:] = [2, 3]; a
+        NoDup([2, 3])
         """
 
-        s = self.__set
-        d = set(self[i:j])
-        if (s - d).intersection(set(other)): raise _NODUPERR
-        super(NoDup, self).__setslice__(i, j, other)
-        s.difference_update(d)
-        s.update(other)
+        i = i if i > 0 else 0
+        j = j if j > 0 else 0
+        self.__setitem__(slice(i, j), other)
         # self._consistency_check()
 
 
     def __delslice__(self, i, j):
         """
-        >>> x = NoDup(range(10))
-        >>> del x[4:8]; x
-        NoDup([0, 1, 2, 3, 8, 9])
+	>>> a = NoDup([0, 1]); del a[0:1]; a
+	NoDup([1])
+	>>> a = NoDup([0, 1]); del a[-3:-1]; a
+	NoDup([1])
+	>>> a = NoDup([0, 1]); del a[0:2]; a
+	NoDup([])
+	>>> a = NoDup([0, 1]); del a[1:2]; a
+	NoDup([0])
+	>>> a = NoDup([0, 1]); del a[-1:2]; a
+	NoDup([0])
+	>>> a = NoDup([0, 1]); del a[-3:2]; a
+	NoDup([])
+	>>> a = NoDup([0, 1]); del a[:]; a
+	NoDup([])
+	>>>
         """
 
-        print '__delslice__ called'
-        self.__set.difference_update(self[i:j])
-        super(NoDup, self).__delslice__(i, j)
+        i = i if i > 0 else 0
+        j = j if j > 0 else 0
+        self.__delitem__(slice(i, j))
         # self._consistency_check()
-
-
-    def pop(self, i=-1):
-        """
-	>>> x = NoDup([1, 2, 3]); x.pop()
-	3
-	>>> x = NoDup([1, 2, 3]); x.pop(1)
-	2
-        >>> x._NoDup__set
-        set([1, 3])
-        """
-
-        ret = super(NoDup, self).pop(i)
-        self.__set.remove(ret)
-        # self._consistency_check()
-        return ret
-
+        
 
     def __iadd__(self, other):
         """
@@ -193,7 +183,131 @@ class NoDup(list):
         return self
 
 
+    def append(self, item):
+        """
+        >>> x = NoDup([1, 2]); x.append(1); x == NoDup([1, 2])
+        True
+        """
+
+        if not item in self.__set:
+            super(NoDup, self).append(item)
+            self.__set.add(item)
+
+        # self._consistency_check()
+
+
+    def insert(self, i, item):
+        """
+        >>> x = NoDup([1, 2])
+        >>> x.insert(1, 0); x
+        NoDup([1, 0, 2])
+        >>> x.insert(2, 1)
+        Traceback (most recent call last):
+        ...
+        TypeError: Duplicates are not allowed
+        >>> x._NoDup__set
+        set([0, 1, 2])
+        """
+
+        if item in self.__set: raise _NODUPERR
+        super(NoDup, self).insert(i, item)
+        self.__set.add(item)
+        # self._consistency_check()
+
+
+    def pop(self, i=-1):
+        """
+	>>> x = NoDup([1, 2, 3]); x.pop()
+	3
+	>>> x = NoDup([1, 2, 3]); x.pop(1)
+	2
+        >>> x._NoDup__set
+        set([1, 3])
+        """
+
+        ret = super(NoDup, self).pop(i)
+        self.__set.remove(ret)
+        # self._consistency_check()
+        return ret
+
+
+    def remove(self, item):
+        """
+        >>> x = NoDup([1, 2, 3]); x.remove(2); x
+        NoDup([1, 3])
+        """
+
+        super(NoDup, self).remove(item)
+        self.__set.remove(item)
+        # self._consistency_check()
+
+
+    def sort(self, *args, **kwargs):
+        """
+        >>> a = NoDup([2, 0, 1]); a.sort(); a
+        NoDup([0, 1, 2])
+        >>> ii = [0]
+        >>> def evilcmp(x, y, ii=ii):
+        ...   a.append(ii[0]); ii[0] += 1; return cmp(x, y)
+        ... 
+        >>> a = NoDup(['C', 'A', 'B']); a
+        NoDup(['C', 'A', 'B'])
+        >>> a.sort(evilcmp)
+        Traceback (most recent call last):
+        ...
+        ValueError: list modified during sort
+        >>> a
+        NoDup(['A', 'B', 'C'])
+        """
+
+        # super(NoDup, self).sort does not work perfectly with the
+        # rest of the current NoDup implementation; in particular, it
+        # fails to raise an exception when it receives a cmp function
+        # that (perversely) modifies the list being sorted; the reason
+        # for this is that, at least in some cases, super(NoDup,
+        # self).sort clears the original list (with "x[:] = []", or
+        # something like it), apparently to more easily detect any
+        # modification by cmp (or key?) on the list (or attempts
+        # thereof); these modifications, whether they are detected
+        # (thereby triggering an exception) or not, do not seem to
+        # affect the final result; therefore, the only objection to
+        # inheriting super(NoDup, self).sort directly is that some
+        # perverse/inept, but probably harmless, code would go
+        # undetected;
+
+        # super(NoDup, self).sort(*args, **kwargs)
+
+        hold_set, self.__set = self.__set, set()
+        try:
+            super(NoDup, self).sort(*args, **kwargs)
+        finally:
+            self.__set = hold_set
+        # self._consistency_check()
+
+
+    def extend(self, other):
+        """
+        >>> x = NoDup([1, 2, 3]); x.extend([5, 3, 2, 5, 4, 1]); x
+        NoDup([1, 2, 3, 5, 4])
+        """
+
+        for o in other: self.append(o)
+        # self._consistency_check()
+
+
     # read-only methods
+
+    def __repr__(self):
+        """
+        >>> repr(NoDup([1, 2]))
+        'NoDup([1, 2])'
+        >>> '%r' % NoDup([1, 2])
+        'NoDup([1, 2])'
+        """
+
+        # SEE COMMENTS in __str__ below
+        return '%s(%s)' % (self.__class__.__name__, self)
+
 
     def __contains__(self, item):
         """
@@ -205,27 +319,39 @@ class NoDup(list):
         return self and item in self.__set
 
 
-    def __add__(self, other):
+    def __getitem__(self, i):
         """
-        >>> NoDup([1, 2, 3]) + NoDup([3, 4, 2, 4]) == \\
-        ... NoDup([1, 2, 3] + [3, 4, 2, 4])
-        True
-        >>> NoDup([1, 2, 3]) + NoDup([3, 4, 2, 4])
-        NoDup([1, 2, 3, 4])
+        >>> NoDup([0, 1])[-1]
+        1
+        >>> NoDup([0, 1])[::-1]
+        NoDup([1, 0])
         """
 
-        cls = type(self)
-        o = other if isinstance(other, cls) else cls(other)
-        return cls(super(NoDup, self).__add__(o))
+        ret = super(NoDup, self).__getitem__(i)
+        return type(self)(ret) if isinstance(i, slice) else ret
 
 
-    # def __radd__(self, other):
-    #     """
-    #     >>> [1, 2, 3] + NoDup([3, 4, 2, 4])
-    #     NoDup([1, 2, 3, 4])
-    #     """
+    def __getslice__(self, i, j):
+        """
+        >>> NoDup([0, 1])[:]
+        NoDup([0, 1])
+        >>> NoDup([0, 1])[0:1]
+        NoDup([0])
+        >>> NoDup([0, 1])[-3:-1]
+        NoDup([0])
+        >>> NoDup([0, 1])[0:2]
+        NoDup([0, 1])
+        >>> NoDup([0, 1])[1:2]
+        NoDup([1])
+        >>> NoDup([0, 1])[-1:2]
+        NoDup([1])
+        >>> NoDup([0, 1])[-3:2]
+        NoDup([0, 1])
+        """
 
-    #     return self.__class__(super(NoDup, self).__radd__(other))
+        i = i if i > 0 else 0
+        j = j if j > 0 else 0
+        return self.__getitem__(slice(i, j))
 
 
     def __mul__(self, n):
@@ -247,15 +373,6 @@ class NoDup(list):
     __rmul__ = __mul__
 
 
-    def __getslice__(self, i, j):
-        """
-        >>> NoDup(range(10))[2:7]
-        NoDup([2, 3, 4, 5, 6])
-        """
-
-        return self.__class__(super(NoDup, self).__getslice__(i, j))
-
-
     def __str__(self):
         """
         >>> str(NoDup([1, 2]))
@@ -275,72 +392,43 @@ class NoDup(list):
         return super(NoDup, self).__repr__()
         
 
-    def __repr__(self):
+    def __copy__(self):
         """
-        >>> repr(NoDup([1, 2]))
-        'NoDup([1, 2])'
-        >>> '%r' % NoDup([1, 2])
-        'NoDup([1, 2])'
+        >>> import copy
+        >>> a = NoDup([0, 1]); b = copy.copy(a)
+        >>> id(a) != id(b)
+        True
         """
 
-        # SEE COMMENTS in __str__ above
-        return '%s(%s)' % (self.__class__.__name__, self)
+        return self[:]
 
 
-"""
 
-    def __eq__(self, other):
-        print '__eq__ called'
-        return super(NoDup, self).__eq__(other)
-        # return self.data == self.__cast(other)
+    def __deepcopy__(self, ignored):
+        """
+        >>> import copy
+        >>> a = NoDup([0, 1]); b = copy.deepcopy(a)
+        >>> id(a) != id(b)
+        True
+        """
 
-    def __cast(self, other):
-        return other
-    def __lt__(self, other):
-        print '__lt__ called'
-        return list(self) <  self.__cast(other)
-    def __le__(self, other):
-        print '__le__ called'
-        return list(self) <= self.__cast(other)
-    def __eq__(self, other):
-        print '__eq__ called'
-        return list(self) == self.__cast(other)
-    def __ne__(self, other):
-        print '__ne__ called'
-        return list(self) != self.__cast(other)
-    def __gt__(self, other):
-        print '__gt__ called'
-        return list(self) >  self.__cast(other)
-    def __ge__(self, other):
-        print '__ge__ called'
-        return list(self) >= self.__cast(other)
-    def __cmp__(self, other):
-        print '__cmp__ called'
-        return cmp(list(self), self.__cast(other))
+        # this method emit a warning letting the user know that,
+        # despite its name, it returns a shallow copy; a deepcopy does
+        # not make sense for a container of immutable objects, like
+        # this one; the same thing happens with, e.g., set:
+        #
+        # >>> x = set(tuple([i]) for i in range(3))
+        # >>> x
+        # set([(2,), (0,), (1,)])
+        # >>> [id(y) for y in x]
+        # [140479126058768, 140479126143248, 140479126117136]
+        # >>> [id(y) for y in cp.copy(x)]
+        # [140479126058768, 140479126143248, 140479126117136]
+        # >>> [id(y) for y in cp.deepcopy(x)]
+        # [140479126058768, 140479126143248, 140479126117136]
+
+        return self.__copy__()
 
 
-    # def __cast(self, other):
-    #     if isinstance(other, ): return other.data
-    #     else: return other
-
-    # def _consistency_check(self):
-    #     assert set(self) == self.__set
-
-    # __hash__ = None # Mutable sequence, so not hashable
-    __hash__ = 0
-"""
-
-
-def _test():
-    # class AllEq:
-    #     def __eq__(self, other):
-    #         return True
-    #     __hash__ = None
-
-    # print AllEq() in []
-    # print AllEq() in NoDup()
-    # print AllEq() in [1]
-    # print AllEq() in NoDup([1])
-
-    a = NoDup([0,1,2,3,4])
-    del a[::2]
+    def _consistency_check(self):
+        assert set(self) == self.__set
