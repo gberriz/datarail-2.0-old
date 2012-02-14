@@ -76,7 +76,7 @@ class NoDup(list):
             selfset.difference_update(goners)
             selfset.update(newitems)
         else:
-            if item in selfset and item != self[i]:
+            if item in self and item != self[i]:
                 raise _NODUPERR
             goner = self[i]
             super(NoDup, self).__setitem__(i, item)
@@ -189,7 +189,7 @@ class NoDup(list):
         True
         """
 
-        if not item in self.__set:
+        if not item in self:
             super(NoDup, self).append(item)
             self.__set.add(item)
 
@@ -209,7 +209,7 @@ class NoDup(list):
         set([0, 1, 2])
         """
 
-        if item in self.__set: raise _NODUPERR
+        if item in self: raise _NODUPERR
         super(NoDup, self).insert(i, item)
         self.__set.add(item)
         # self._consistency_check()
@@ -314,9 +314,28 @@ class NoDup(list):
         >>> x = NoDup([1, 2]); 1 in x; 3 in x
         True
         False
+	>>> class hashless:
+	...     __hash__ = None
+	... 
+	>>> hashless() in NoDup([0])
+	False
+	>>> class hashless(object):
+	...     __hash__ = None
+	... 
+	>>> hashless() in NoDup([0])
+	False
         """
 
-        return self and item in self.__set
+        if not self: return False
+        try:
+            return item in self.__set
+        except TypeError, e:
+            msg = str(e)
+            # attempt to recover item is "unhashable" for some reason
+            if ('unhashable' in msg or
+                "'NoneType' object is not callable" in msg):
+                return super(NoDup, self).__contains__(item)
+            raise
 
 
     def __getitem__(self, i):

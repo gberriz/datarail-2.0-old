@@ -1,6 +1,6 @@
 import sys
 import copy as cp
-import unittest
+import unittest as ut
 import test.test_support as ts
 import test.seq_tests as tst
 import test.list_tests as tlt
@@ -80,10 +80,36 @@ class NoDupTest(tlt.CommonTest):
         self.assertNotEqual(id(v), id(w))
 
 
-    def test_contains_fake(self): pass
+    # getting test.seq_tests.test_contains_order to pass is a hopeless
+    # proposition, because it is based on raising an exception upon
+    # equality testing on the contents; this means that, for example,
+    # even creating objects like the test's NoDup([1, StopCompares()])
+    # trigger the exception; this is no "corner-case": NoDup depends
+    # critically on equality testing for its core functionality, so
+    # there is little hope of getting this test to work with NoDup;
+    # more importantly, the property the test is testing (strict
+    # linear search to test for containment) is one that, NoDup, by
+    # design, does *not* satisfy.
+    @ut.skip('not applicable (original in test.seq_tests)')
+    def test_contains_order(self):
+        # see overridden method in tst (test.seq_tests)
+        pass
 
+    # copied directly from tst (test.seq_tests)
+    # def test_contains_order(self):
+    #     # Sequences must test in-order.  If a rich comparison has side
+    #     # effects, these will be visible to tests against later members.
+    #     # In this test, the "side effect" is a short-circuiting raise.
+    #     class DoNotTestEq(Exception):
+    #         pass
+    #     class StopCompares:
+    #         def __eq__(self, other):
+    #             raise DoNotTestEq
 
-    def test_contains_order(self): pass
+    #     checkfirst = self.type2test([1, StopCompares()])
+    #     self.assertIn(1, checkfirst)
+    #     checklast = self.type2test([StopCompares(), 1])
+    #     self.assertRaises(DoNotTestEq, checklast.__contains__, 1)
 
 
     def test_addmul(self):
@@ -252,6 +278,10 @@ class NoDupTest(tlt.CommonTest):
         self.assertEqual(str(a2), '[0, 1, 2]')
 
 
+    # the test (in test.list_tests) that the stub below "overrides"
+    # focuses on how recursive objects are printed, which is not
+    # applicable to the current version of nodup.NoDup
+    @ut.skip('not applicable (original in test.list_tests)')
     def test_print(self):
         pass
 
