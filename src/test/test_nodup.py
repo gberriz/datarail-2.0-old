@@ -156,13 +156,34 @@ class NoDupTest(tlt.CommonTest):
         self.assertEqual(id(s), oldid)
 
 
-    # FAILS
-    # def test_getitemoverwriteiter(self):
-    #     # Verify that __getitem__ overrides *are* recognized by __iter__
-    #     class T(self.type2test):
-    #         def __getitem__(self, i):
-    #             return str(i) + '!!!'
-    #     self.assertEqual(iter(T((0, 1))).next(), '0!!!')
+    # The test test_getitemoverwriteiter is originally defined in
+    # test.seq_tests, and it is overridden in test.test_userlist;
+    # these two versions of the test enforce *opposite* invariants: if
+    # test.test_userlist.test_getitemoverwriteiter succeeds,
+    # test.seq_tests.test_getitemoverwriteiter should fail; if
+    # test.seq_tests.test_getitemoverwriteiter succeeds,
+    # test.test_userlist.test_getitemoverwriteiter should fail; the
+    # version below is a close replica of
+    # test.test_userlist.test_getitemoverwriteiter;
+
+    # getting test_getitemoverwriteiter to pass (i.e. to succeed iff
+    # "__getitem__ overrides *are* recognized by __iter__") requires
+    # implementing a list iterator class for NoDup, as well as
+    # overriding NoDup.__iter__; the benefits of doing this do not
+    # seem worth the loss in performance resulting from an all-Python
+    # list iterator and/or __iter__ method; hence, for now, I'll just
+    # replace this test with a no-op;
+    #
+
+    # copied (with superficial modifications) from test.test_userlist
+    @ut.skip('enforces a performance-costly feature '\
+             '(original in test.test_userlist)')
+    def test_getitemoverwriteiter(self):
+        # Verify that __getitem__ overrides *are* recognized by __iter__
+        class T(self.type2test):
+            def __getitem__(self, idx):
+                return str(idx) + '!!!'
+        self.assertEqual(iter(T((1, 2))).next(), '0!!!')
 
 
     def test_repeat(self):

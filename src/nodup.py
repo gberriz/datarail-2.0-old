@@ -449,5 +449,25 @@ class NoDup(list):
         return self.__copy__()
 
 
+    # Uncomment to get the test test_getitemoverwriteiter to pass
+    # def __iter__(self):
+    #     class __nodupiterator(object):
+    #         def __init__(self, _nodupobj):
+    #             self.__counter = -1
+    #             self.__nodupobj = _nodupobj
+    #             self.__done = False
+    #         def next(self):
+    #             if not self.__done:
+    #                 c = self.__counter
+    #                 self.__counter = c = c + 1
+    #                 nd = self.__nodupobj
+    #                 if c < len(nd): return nd[c]
+    #                 self.__done = True
+    #             raise StopIteration
+    #         def __iter__(self):
+    #             return self
+    #     return __nodupiterator(self)
+
+
     def _consistency_check(self):
         assert set(self) == self.__set
