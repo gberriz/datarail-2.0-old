@@ -95,6 +95,23 @@ class MSColumn(Column):
         super(MSColumn, self).__setslice__(self, i, j, els)
 
 
+
+def greekToEnglish(s, map_={u'\u03b1': u'alpha', u'\u03b3': u'gamma',
+                            u'\u03ba': u'kappa'}):
+    return u''.join([map_.get(c, c) for c in list(s)])
+                       
+
+def encode_record(r):
+    return [greekToEnglish(unicode(c)).encode('utf-8') for c in r]
+
+
+def print_table(fh, headers, row_iterator, lineterminator='\r\n'):
+    writer = csv.writer(fh, lineterminator=lineterminator)
+    writer.writerow(encode_record(headers))
+    wrapped_iterator = (encode_record(r) for r in row_iterator)
+    writer.writerows(wrapped_iterator)
+
+
 def write_datapflex(path, treatment_columns, data_columns, info_columns=()):
 
     treatment_columns = tuple(treatment_columns)
@@ -134,98 +151,14 @@ def write_datapflex(path, treatment_columns, data_columns, info_columns=()):
     def ith_record(i):
         return sum([ith_subrecord(i, cs) for cs in all_colsets], ())
 
-
-    def greekToEnglish(s, map_={u'\u03b1': u'alpha', u'\u03b3': u'gamma',
-                                u'\u03ba': u'kappa'}):
-        return u''.join([map_.get(c, c) for c in list(s)])
-                           
-
-    def encode_record(r):
-        return [greekToEnglish(unicode(c)).encode('utf-8') for c in r]
-
-
-    def print_table(fh, lineterminator='\r\n'):
-        writer = csv.writer(fh, lineterminator=lineterminator)
-        writer.writerow(encode_record(headers))
-        writer.writerows(encode_record(ith_record(i)) for i in xrange(nrows))
+    row_iterator = (ith_record(i) for i in xrange(nrows))
 
     if path is None:
-        print_table(sys.stdout, '\n')
+        print_table(sys.stdout, headers, row_iterator, '\n')
     else:
         with open(path, 'w') as outfh:
-            print_table(outfh)
+            print_table(outfh, headers, row_iterator)
 
-
-# def _malformed(reason):
-#     return TypeError('malformed DataPflex file: %s' % reason)
-
-# def pair_headers(headers, suffix='=stdev'):
-#     wosfx = set()
-#     wsfx = {}
-#     lsfx = len(suffix)
-#     nwsfx = nwosfx = 0
-#     for h in headers:
-#         if h.endswith(suffix):
-#             nwsfx += 1
-#             wsfx[h[:-lsfx]] = h
-#         else:
-#             nwosfx += 1
-#             wosfx.add(h)
-#     assert nwosfx == len(wosfx)
-#     assert all([h in wosfx for h in wsfx])
-#     ret = []
-#     for h in headers:
-#         if h not in wosfx:
-#             continue
-#         if h in wsfx:
-#             ret.append(MSColumn(h))
-
-#         (wsfx if h.endswith(suffix) else wosfx).append(h)
-#     assert len(wosfx) >= len(wsfx)
-
-# def parse_headers(headers):
-#     # THIS IMPLEMENTATION IS INCOMPLETE: IT DOES NO ERROR-CHECKING!
-#     skip_idxs = [i for i, l in enumerate(headers) if len(l) == 0]
-#     blank_idx = skip_idxs[-1]
-#     first_data_idx = blank_idx + 1
-
-#     assert blank_idx - skip_idxs[0] + 1 == len(skip_idxs)
-
-#     nonblank_idx = (range(skip_idxs[0]) +
-#                     range(first_data_idx, len(headers)))
-#     thdrs = [headers[i] for i in range(skip_idxs[0])]
-#     thdrs0 = [h.split('=')[0] for h in thdrs]
-#     dhdrs = [headers[i] for i in range(first_data_idx, len(headers))]
-#     nonblank_hdrs = thdrs + dhdrs
-#     if len(nonblank_hdrs) > len(set(nonblank_hdrs)):
-#         raise _malformed('repeated headers')
-
-#     dhs = headers[first_data_idx:]
-#     mhs = [h for h in dhs if '=' not in h]
-#     if len(mhs) > len(set(mhs))
-#     shs = [h for h in dhs if '=' in h]
-
-
-# def read_datapflex(path):
-#     with open(path, 'r') as inh:
-#         reader = csv.reader(inh)
-#         def _normalize_header(h):
-#             ret = h.replace(' STDDEV', '=stdev')
-#             return ret
-
-#         headers = map(_normalize_header, reader.next())
-
-#         skip_idxs = [i for i, l in enumerate(headers) if len(l) == 0]
-#         blank_idx = skip_idxs[-1]
-#         assert blank_idx - skip_idxs[0] + 1 == len(skip_idxs)
-#         first_data_idx = blank_idx + 1
-
-#         def to_record(iterable):
-#             tvals = iterable[:skip_idxs[0]]
-#             dvals = iterable[first_data_idx:]
-
-#         ST()
-#         data = list(reader)
 
 def unique(iterable):
     return 1 == len(set(iterable))
