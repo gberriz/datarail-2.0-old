@@ -44,7 +44,7 @@ def _recursive_repr(dots=lambda s: '%s(...)' % type(s).__name__):
 
 KEY, PREV, NEXT = range(3)
 
-class OrderedSet(co.MutableSet):
+class OrderedSet(co.Set):
     def __init__(self, iterable=None):
         self._debug = False
         self._reset([], {})
@@ -59,28 +59,10 @@ class OrderedSet(co.MutableSet):
             curr = end[PREV]
             curr[NEXT] = end[PREV] = self.mapping[key] = [key, curr, end]
 
-    # the KEY and PREV keyword avoids an exception that may occur
-    # *occasionally* at shutdown if the call to __del__ results in a
-    # call to clear (this is a case of "defensive programming", since
-    # clear is not invoked in the current implementation of
-    # OrderedSet)
-    # def clear(self, PREV=PREV):
-    #     end = self.end
-    #     curr = end[PREV]
-    #     while curr is not end:
-    #         prev = curr[PREV]
-    #         curr[:] = []
-    #         curr = prev
-    #     self._reset()
-
-    def _endids(self, PREV=PREV, NEXT=NEXT):
-        end = self.end
-        return str((id(end), id(end[PREV]), id(end[NEXT])))
-
     def clear(self):
         if not self: return
 
-        for curr in self.__baseiter__():
+        for curr in self.__baseiter():
             curr[:] = []
 
         assert self.end == [None, [], []]
@@ -186,10 +168,10 @@ class OrderedSet(co.MutableSet):
 
     # the NEXT keyword avoids an exception that may occur
     # *occasionally* at shutdown if the call to __del__ results in a
-    # call to __baseiter__ (this is a case of "defensive programming",
-    # since __baseiter__ is not invoked in the current implementation
+    # call to __baseiter (this is a case of "defensive programming",
+    # since __baseiter is not invoked in the current implementation
     # of OrderedSet)
-    def __baseiter__(self, NEXT=NEXT):
+    def __baseiter(self, NEXT=NEXT):
         end = self.end
         curr = end[NEXT]
         while curr is not end:
@@ -197,8 +179,8 @@ class OrderedSet(co.MutableSet):
             yield curr
             curr = n_xt
 
-    # re PREV keyword: see comment before definition of __baseiter__.
-    def __basereviter__(self, PREV=PREV):
+    # re PREV keyword: see comment before definition of __baseiter.
+    def __basereviter(self, PREV=PREV):
         end = self.end
         curr = end[PREV]
         while curr is not end:
@@ -230,9 +212,9 @@ class OrderedSet(co.MutableSet):
         else:
             return hasattr(other, '__iter__') and set(self) == set(other)
 
-    # re KEY keyword: see comment before definition of __baseiter__.
+    # re KEY keyword: see comment before definition of __baseiter.
     def __iter__(self, KEY=KEY):
-        for curr in self.__baseiter__():
+        for curr in self.__baseiter():
             yield curr[KEY]
 
     def __len__(self):
@@ -240,13 +222,11 @@ class OrderedSet(co.MutableSet):
 
     def __reduce_ex__(self, proto):
         # FIXME: don't ignore proto
-        # return (type(self), (list(self),))
         state = {}
         stdkeys = _stdkeys()
         for k, v in self.__dict__.items():
             if k not in stdkeys:
                 state[k] = v
-
         return (_unpickle, (list(self),), state)
 
     @_recursive_repr()
@@ -257,10 +237,10 @@ class OrderedSet(co.MutableSet):
 
 
     def __reversed__(self):
-        for curr in self.__basereviter__():
+        for curr in self.__basereviter():
             yield curr[KEY]
 
-    def __difference__(self, other, update=False):
+    def __difference(self, other, update=False):
         _assert_supported_operand_types('-' if not update else '-=',
                                         self, other)
         if update:
@@ -269,7 +249,7 @@ class OrderedSet(co.MutableSet):
         else:
             return self.difference(other)
 
-    def __intersection__(self, other, update=False, flip=False):
+    def __intersection(self, other, update=False, flip=False):
         assert not (flip and update)
         op = '&' if not update else '&='
         args = (self, other) if not flip else (other, self)
@@ -280,11 +260,11 @@ class OrderedSet(co.MutableSet):
             self.intersection_update(other)
             return self
         elif flip:
-            return OrderedSet(other).intersection(self)
+            return type(self)(other).intersection(self)
         else:
             return self.intersection(other)
 
-    def __symmetric_difference__(self, other, update=False, flip=False):
+    def __symmetric_difference(self, other, update=False, flip=False):
         assert not (flip and update)
         op = '^' if not update else '^='
         args = (self, other) if not flip else (other, self)
@@ -295,11 +275,11 @@ class OrderedSet(co.MutableSet):
             self.symmetric_difference_update(other)
             return self
         elif flip:
-            return OrderedSet(other).symmetric_difference(self)
+            return type(self)(other).symmetric_difference(self)
         else:
             return self.symmetric_difference(other)
 
-    def __union__(self, other, update=False, flip=False, op='|'):
+    def __union(self, other, update=False, flip=False, op='|'):
         if update:
             assert not flip
             op += '='
@@ -311,58 +291,55 @@ class OrderedSet(co.MutableSet):
             self.update(other)
             return self
         elif flip:
-            return OrderedSet(other).union(self)
+            return type(self)(other).union(self)
         else:
             return self.union(other)
 
     def __add__(self, other):
         # non-standard!
-        return self.__union__(other, op='+')
+        return self.__union(other, op='+')
 
     def __and__(self, other):
-        return self.__intersection__(other)
+        return self.__intersection(other)
 
 
     def __iadd__(self, other):
-        return self.__union__(other, update=True, op='+')
+        return self.__union(other, update=True, op='+')
 
     def __iand__(self, other):
-        return self.__intersection__(other, update=True)
+        return self.__intersection(other, update=True)
 
     def __ior__(self, other):
-        return self.__union__(other, update=True)
+        return self.__union(other, update=True)
 
     def __isub__(self, other):
-        return self.__difference__(other, update=True)
+        return self.__difference(other, update=True)
 
     def __ixor__(self, other):
-        return self.__symmetric_difference__(other, update=True)
+        return self.__symmetric_difference(other, update=True)
 
 
     def __or__(self, other):
-        return self.__union__(other)
-
+        return self.__union(other)
 
     def __radd__(self, other):
         # non-standard!
-        return self.__union__(other, flip=True, op='+')
+        return self.__union(other, flip=True, op='+')
 
     def __rand__(self, other):
-        return self.__intersection__(other, flip=True)
+        return self.__intersection(other, flip=True)
 
     def __ror__(self, other):
-        return self.__union__(other, flip=True)
+        return self.__union(other, flip=True)
 
     def __rxor__(self, other):
-        return self.__symmetric_difference__(other, flip=True)
-
+        return self.__symmetric_difference(other, flip=True)
 
     def __sub__(self, other):
-        return self.__difference__(other)
+        return self.__difference(other)
 
     def __xor__(self, other):
-        return self.__symmetric_difference__(other)
-
+        return self.__symmetric_difference(other)
 
 
     def _reset(self, end=None, mapping=None):
@@ -406,5 +383,21 @@ def _maybefreeze(key):
 
 
 if __name__ == '__main__':
-    print(OrderedSet('abracadaba'))
-    print(OrderedSet('simsalabim'))
+    # print(OrderedSet('abracadaba'))
+    # print(OrderedSet('simsalabim'))
+    class SC(OrderedSet):
+        pass
+
+    word = 'simsalabim'
+    otherword = 'madagascar'
+    s = SC(word)
+    o = tuple(otherword)
+
+    if True:
+        ST()
+        k = o ^ s
+        for c in (word + otherword):
+            if (c in word) ^ (c in otherword):
+                assert c in k
+            else:
+                assert c not in k

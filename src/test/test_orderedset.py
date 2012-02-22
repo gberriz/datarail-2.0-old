@@ -593,6 +593,16 @@ class TestSet(TestJointOps):
             else:
                 self.assertNotIn(c, self.s)
 
+    def test_rxor(self):
+        other = tuple(self.otherword)
+        s = other ^ self.s
+        self.assertEqual(type(s), type(self.s))
+        for c in (self.word + self.otherword):
+            if (c in self.word) ^ (c in self.otherword):
+                self.assertIn(c, s)
+            else:
+                self.assertNotIn(c, s)
+
     def test_inplace_on_self(self):
         t = self.s.copy()
         t += t
