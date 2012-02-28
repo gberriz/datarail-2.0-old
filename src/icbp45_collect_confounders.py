@@ -235,17 +235,6 @@ def main(argv):
 
             subassay_dir.create_dataset('data', data=data)
 
-    # with h5h.Hdf5File(outpath, 'r') as h5:
-    #     for subassay in bricks:
-    #         labelsyaml = h5['confounders/%s/labels' % subassay].value
-    #         factors = load(labelsyaml)
-    #         for k, vs in factors:
-    #             print k
-    #             for v in vs:
-    #                 print '  %s' % (v,)
-    #             print
-    #         print '\n%s\n\n' % labelsyaml
-
     return 0
 
 
