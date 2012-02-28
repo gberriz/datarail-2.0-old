@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
 from collections import namedtuple, defaultdict
-# import pickle as serializer
-# import cPickle as serializer
 import numpy as np
 from itertools import count
 
@@ -133,7 +131,6 @@ def main(argv):
         import sys
         print >> sys.stderr, 'warning: %s exists' % outpath
 
-    global ValCoords, PickledCubes # globalized to enable pickling
     with open(PARAM.path_to_expmap) as fh:
         KeyCoords, ValCoords = [namedtuple(n, c)
                                 for n, c in zip((u'KeyCoords', u'ValCoords'),
