@@ -7,6 +7,7 @@ import cPickle as pickle
 from fcntl import flock, LOCK_EX, LOCK_NB
 import warnings
 
+from nodup import NoDup
 from memoized import memoized
 from sdc_extract import _extract_wells_data
 from multikeydict import MultiKeyDict as mkd
@@ -51,9 +52,8 @@ def _parseargs(argv):
 
     d = dict()
     l = locals()
-    params = ('path_to_expmap assay subassay '
-              'output_path ')
-    for p in params.split():
+    params = 'path_to_expmap assay subassay output_path '
+    for p in params.strip().split():
         d[p] = l[p]
     _updateparams(d)
 
