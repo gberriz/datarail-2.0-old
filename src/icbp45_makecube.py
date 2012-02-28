@@ -53,9 +53,8 @@ def _parseargs(argv):
 
     d = dict()
     l = locals()
-    params = ('path_to_expmap assay subassay '
-              'output_path ')
-    for p in params.split():
+    params = 'path_to_expmap assay subassay output_path '
+    for p in params.strip().split():
         d[p] = l[p]
     _updateparams(d)
 
@@ -241,7 +240,9 @@ def main(argv):
             target = get_target(val)
 
             wanted_features = get_wanted_features(val.channel, target)
-            print target, wanted_features
+            # print unicode(target).encode('utf-8'), unicode(wanted_features).encode('utf-8')
+            # import sys
+            # sys.exit(0)
             rawdata = get_rawdata(sdc_paths, wanted_features)
             assert rawdata.size
 
