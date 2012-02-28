@@ -33,10 +33,16 @@ def iterfields(well):
 
 
 def plate_well(well):
+    """Extract plate and well indices from a well HDF5 group in an SDC file.
+    """
+
     return well['Meta']['Plate_Well']
 
 
 def well_coords(well):
+    """Extract well coordinates from a well HDF5 group in an SDC file.
+    """
+
     plate_idx, well_idx = plate_well(well)
     return (idx2plate(plate_idx),) + idx2rc(well_idx)
 
