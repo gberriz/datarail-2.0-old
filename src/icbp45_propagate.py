@@ -143,7 +143,7 @@ def mu_sigma(hbrick, axes, newdim=(u'stat', (u'mean', u'stddev'))):
     # numerical indices;
     axes = tuple(map(hbrick._toaxis, axes))
 
-    data = _mu_data(hbrick._data, axes)
+    data = _mu_sigma(hbrick._data, axes)
     newdims = [hbrick._fromaxis(i)
                for i in range(hbrick.ndim)
                if i not in set(axes)] + [newdim]
