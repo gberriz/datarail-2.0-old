@@ -191,22 +191,14 @@ def main(argv):
         source = 'from_IR'
         target = h5.require_group('from_IR_w_zeros')
         for subassay in 'GF', 'CK':
-            brick = h5['/'.join((source, subassay))]
-
-            # must copy data into an in-memory array, otherwise the h5 file
-            # can't be closed (and therefore it can't be re-opened either), nor
-            # can the data be pickled.
-            data = np.array(brick['data'])
-            labels = h5h.load(brick['labels'].value)
-            fullbrick = propagate_controls(hb.HyperBrick(data, labels))
+            brick = h5h.read_hyperbrick(h5['/'.join((source, subassay))])
+            fullbrick = propagate_controls(brick)
             h5h.write_hyperbrick(target.require_group(subassay), fullbrick)
 
     return 0
 
-if __name__ == '__main__':
-    # import sys
-    # exit(main(sys.argv))
 
+def _test():
     import numpy as np
     inshape = 4, 2, 4, 3, 4
     inbuf = np.array(map(float, range(np.product(inshape))))
@@ -220,3 +212,11 @@ if __name__ == '__main__':
                                                      for z in range(4)]]
                                           for w in range(4)
                                           for x in range(4)])
+    return 0
+
+
+if __name__ == '__main__':
+    import sys
+    exit(main(sys.argv))
+    # exit(_test())
+
