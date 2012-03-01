@@ -11,6 +11,7 @@ from orderedset import OrderedSet as ordset
 import icbp45_utils
 from h5helper import dump, load
 import h5helper as h5h
+import hyperbrick as hb
 #from factor_nset import min_shape
 from factor_nset import get_labels
 from factor_nset import get_factors
@@ -31,8 +32,11 @@ __d.update(
       'sep': (u',\t,', u',', u'|', u'^'),
       'extra_dim_name': u'confounder',
       'maskval': 0,
-      'inttype': 'int16',
+      'float': np.float64,
     })
+
+__d['fillvalue'] = __d['float'](float('nan'))
+
 del __d
 
 def _parseargs(argv):
@@ -129,7 +133,7 @@ def main(argv):
     outpath = PARAM.path_to_outfile
     if os.path.exists(outpath):
         import sys
-        print >> sys.stderr, 'warning: %s exists' % outpath
+        print >> sys.stderr, 'warning: clobbering an existing %s' % outpath
 
     with open(PARAM.path_to_expmap) as fh:
         KeyCoords, ValCoords = [namedtuple(n, c)
@@ -213,10 +217,11 @@ def main(argv):
         for key in keys_tuple:
             npcube[cube.index(key)] = cube.get(key)
 
-        bricks[subassay] = (labels, npcube)
+        bricks[subassay] = hb.HyperBrick(npcube, labels)
 
     with h5h.Hdf5File(outpath, 'w') as h5:
         dir0 = h5.require_group('confounders')
+        dir1 = h5.require_group('from_IR')
 
         keymap = vcmapper.mappers
         h5h.force_create_dataset(dir0, 'keymap', data=dump(keymap))
@@ -224,16 +229,19 @@ def main(argv):
         #     keymap = yaml.load(<H5>['confounders/keymap'].value)
         # ...where <H5> stands for some h5py.File instance
 
-        for subassay, brick in bricks.items():
-            subassay_dir = dir0.require_group(subassay)
-            labels, data = brick
+        for subassay, hyperbrick in bricks.items():
+            empty_datacube = np.ndarray(hyperbrick.data.shape,
+                                        dtype=PARAM.float)
 
-            subassay_dir.create_dataset('labels', data=dump(labels))
-            # reconstitute the above with:
-            #     labels = yaml.load(<H5>['confounders/<SUBASSAY>/labels'].value)
-            # ...where <H5> stands for some h5py.File instance
+            # the next step is not essential; also, there may be a
+            # choice of fillvalue than the current one (NaN)
+            empty_datacube.fill(PARAM.fillvalue)
 
-            subassay_dir.create_dataset('data', data=data)
+            empty_hyperbrick = hb.HyperBrick(empty_datacube,
+                                             hyperbrick.labels)
+
+            for d, b in ((dir0, hyperbrick), (dir1, empty_hyperbrick)):
+                h5h.write_hyperbrick(d.require_group(subassay), b)
 
     return 0
 
