@@ -231,6 +231,9 @@ def write_hyperbrick(h5grp, brick):
 
 
 def read_hyperbrick(h5grp):
+    # must *copy* data into an in-memory array, otherwise the
+    # h5 file can't be closed (and therefore it can't be
+    # re-opened either), nor can the data be pickled.
     data = np.array(h5grp['data'])
     labels = load(h5grp['labels'].value)
     return hb.HyperBrick(data, labels)
