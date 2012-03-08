@@ -79,7 +79,7 @@ def rc2idx(rc):
     >>> rc2idx(['C06'])
     Traceback (most recent call last):
         ...
-    TypeError: argument must be a string or a sequence of length 2
+    TypeError: argument must be a string or a sequence of length 2 (got "['C06']")
     >>> rc2idx('I01')
     Traceback (most recent call last):
         ...
