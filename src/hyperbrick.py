@@ -82,6 +82,8 @@ class HyperBrick(object):
 
 
     def _toslice(self, pa, dimvals, dimname):
+        if not hasattr(dimvals, '__iter__'):
+            raise TypeError, 'invalid arguments'
         if pa is None:
             return slice(None)
         if isinstance(pa, slice):
@@ -161,7 +163,7 @@ class HyperBrick(object):
 
         dimvals = self._dims[:nargs]
         dimnames = tuple(d.name for d in self._dims[:nargs])
-        slices = map(self._toslice, idx, dimnames, dimvals) + \
+        slices = map(self._toslice, idx, dimvals, dimnames) + \
                  [slice(None) for _ in range(ndim - nargs)]
         return zip(dimnames, tuple(dv.__getitem__(sl) for
                                    dv, sl in zip(dimvals, slices)))
