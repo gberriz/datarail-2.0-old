@@ -5,7 +5,6 @@ import re
 from pdb import set_trace as ST
 
 from noclobberdict import NoClobberDict
-import dimension as di
 
 class Column(list):
     def __new__(cls, name, iterable=[], units=None):

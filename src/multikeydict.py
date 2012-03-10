@@ -35,7 +35,7 @@ from copy import deepcopy as _deepcopy
 from orderedset import OrderedSet
 
 from pdb import set_trace as ST
-# INDENT = 0
+
 class MultiKeyDict(defaultdict):
     '''
     Class to implement nested dictionaries of arbitrary depth.
@@ -465,7 +465,25 @@ class MultiKeyDict(defaultdict):
     def __reduce_ex__(self, proto):
         assert proto == 0
         return (type(self), (), self.__dict__, None, self.iteritems())
-        
+
+    def copyorder(self, other):
+        if not isinstance(other, MultiKeyDict):
+            raise ValueError, 'inconsistent values'
+
+        if set(self._keyorder) != set(other._keyorder):
+            raise ValueError, 'incompatible keys'
+
+        keys = _deepcopy(other._keyorder)
+
+        for v, o in ((self[k], other[k]) for k in keys):
+            m = isinstance(v, MultiKeyDict)
+            if m ^ isinstance(o, MultiKeyDict):
+                raise ValueError, 'inconsistent values'
+            if not m: continue
+            v.copyorder(o)
+
+        self._keyorder = keys
+
 
 def _subclass_factory(cls, default_maxdepth, _memo=dict(), **nspace):
     assert default_maxdepth > 0

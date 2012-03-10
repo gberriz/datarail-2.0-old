@@ -1,7 +1,25 @@
+# -*- coding: utf-8 -*-
+import re
+
 import issequence as iss
 
 import traceback as tb
 from pdb import set_trace as ST
+
+# FIXME
+def _normalize(u, _r=(re.compile(ur"u?(?:'([^']*)'" ur'|"([^"]*)")'),
+                      re.compile(ur'(?:^\W+|\W+$)'),
+                      re.compile(ur'\W+'))):
+
+    if hasattr(u, '__iter__'):
+        return type(u)([_normalize(unicode(v)) for v in u])
+
+    return _r[2].sub(u'__',
+                     _r[1].sub(u'',
+                               _r[0].sub(lambda m: u''.join(filter(None,
+                                                                   m.groups())),
+                                         unicode(u))))
+
 
 def _checkargs(func, *args, **kw):
     return func
@@ -26,6 +44,8 @@ class Dimension(tuple):
 
     @_checkargs
     def __init__(self, name, levels):
+        # FIXME: the assignment below should be
+        # self.name = _normalize(name)
         self.name = name
         self.__len = l = len(levels)
         self.__index = dict(zip(levels, range(l)))
@@ -34,6 +54,13 @@ class Dimension(tuple):
         return tuple(map(self.__toindex, spec))
 
     def index(self, spec):
+        ret = self._extended_index(spec)
+        assert isinstance(ret, slice)
+        return ret if None in (ret.start, ret.stop) \
+                      or ret.stop - ret.start != 1 \
+                   else ret.start
+
+    def _extended_index(self, spec):
         if spec is None:
             return slice(0, self.__len, None)
         if isinstance(spec, slice):

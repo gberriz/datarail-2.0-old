@@ -38,6 +38,7 @@ class Hdf5File(h5py.File):
     #     return ret
 
     def __init__(self, path, mode='r+', **kwargs):
+        # NOTE: the default mode is 'r+', NOT 'r'!!
         self._mode = mode
         self._path = path
         self._dummyhandle = None
@@ -230,13 +231,64 @@ def write_hyperbrick(h5grp, brick):
     return
 
 
-def read_hyperbrick(h5grp):
+def read_hyperbrick(h5grp, keymap_grp=None):
     # must *copy* data into an in-memory array, otherwise the
     # h5 file can't be closed (and therefore it can't be
     # re-opened either), nor can the data be pickled.
     data = np.array(h5grp['data'])
     labels = load(h5grp['labels'].value)
-    return hb.HyperBrick(data, labels)
+    if keymap_grp:
+        keymap = read_keymap(keymap_grp)
+        components = labels[-1][1]
+        return hb.EncodedHyperBrick(data, labels, zip(components, keymap))
+    else:
+        return hb.HyperBrick(data, labels)
+
+
+def read_keymap(h5grp, name='keymap'):
+    """Return the keymap encoded in h5grp[name].
+
+    The returned value is a list containing one dictionary per
+    *confounder* dimension, whose keys are the opaque integer ids used
+    to encode possible coordinate values within the HDF5 file, and
+    whose values are strings representing possible values for the
+    dimension.  (NOTE: the *confounder* dimensions name the components
+    of each cell's *value* in the associated hyperbrick, and should
+    not be confused with the factors/levels used as the *address* (aka
+    index aka key) of this cell in the hyperbrick.)
+    """
+
+    return tuple(dict((int(v), k) for k, v in d.items())
+                 for d in load(h5grp[name].value))
+
+
+def _invert_1to1(map):
+    """
+    >>> _invert_1to1({0: 'zero', 1: 'one', 2: 'two'})
+    {'zero': 0, 'two': 2, 'one': 1}
+
+    If MAP is not 1-to-1, the returned value is unpredictable:
+    >>> _invert_1to1({0: 'zero', None: 'zero', 1: 'one'})
+    {'zero': 0, 'one': 1}
+    """
+    return dict(zip(*[reversed(sum(map.items(), ()))] * 2))
+
+
+def invert_keymap(keymap):
+    """Return the inverse of keymap.
+
+    The returned value is a list containing one dictionary per
+    dimension/component of the hyperbrick's cells' values.  For each
+    one of these components, the keys and values of the associated
+    dictionary are, respectively, admissible values for this
+    component, and the opaque integer ids used to encode these
+    admissible values inside the HDF5 file.
+
+    The argument for invert_keymap is expected to be a keymap returned
+    by read_keymap, or the equivalent.
+    """
+
+    return tuple(_invert_1to1(d) for d in keymap)
 
 
 def main(argv):

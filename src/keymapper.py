@@ -3,48 +3,15 @@ from multikeydict import MultiKeyDict as mkd
 
 class SimpleKeyMapper(dict):
     __max_ids = 2**32
+    __fill = [object()]
 
     def __init__(self, seq=None, offset=0,
                  _id_min=-__max_ids/2, _id_max=__max_ids/2, **kwargs):
 
         self._offset = offset
-        self._inverse = inv = []
-        self._len = len(inv)
-
-        if seq is None:
-            id_min = kwargs.pop('id_min', _id_min)
-            id_max = kwargs.pop('id_max', _id_max)
-            if kwargs:
-                raise TypeError('unrecognized keyword(s): %s' %
-                                ', '.join(kwargs.keys()))
-            max_ids = id_max - id_min
-            if max_ids < 0:
-                raise ValueError('id_max - id_min must be nonnegative')
-            if not id_min <= offset <= id_max:
-                raise ValueError('offset out of range')
-
-            self._state = self._offset
-            def _newid(id_min=id_min, id_max=id_max, max_ids=max_ids):
-                if self._len >= max_ids:
-                    raise ValueError('no more ids available')
-                ret = self._state
-                if ret >= id_max:
-                    assert ret == id_max
-                    self._state = ret = id_min
-                self._state += 1
-
-                s = ret if ret >= self._offset else ret + self._max_ids
-                assert self._len == s - self._offset
-
-                return ret
-
-            self.seq = _newid
-        else:
-            if 'id_min' in kwargs or 'id_max' in kwargs:
-                raise TypeError('specifying id_min or id_max is '
-                                'incompatible with specifying seq')
-            self.seq = lambda: next(seq)
-
+        self._inverse = inv = {}
+        self._len = len(self)
+        self.seq = lambda: next(seq)
         super(SimpleKeyMapper, self).__init__()
 
 
@@ -53,11 +20,13 @@ class SimpleKeyMapper(dict):
 
 
     def __getitem__(self, i):
-        ii = self._inverse_index(i)
         try:
-            return self._inverse[ii]
-        except IndexError:
-            raise KeyError('mapper index out of range')
+            ret = self._inverse[i]
+            assert super(SimpleKeyMapper, self).__getitem__(ret) == i
+        except (KeyError, IndexError, AssertionError):
+            raise KeyError('unknown index (%d)' % i)
+
+        return ret
 
 
     def __setitem__(self, i, v):
@@ -66,12 +35,13 @@ class SimpleKeyMapper(dict):
 
     def getid(self, key):
         try:
-            ret = self(key)
+            i = self(key)
+            # i.e., i = super(SimpleKeyMapper, self).__getitem__(unicode(key))
         except KeyError:
-            key, ret = unicode(key), self.seq()
-            super(SimpleKeyMapper, self).__setitem__(key, ret)
-            self._update_inverse(key)
-        return ret
+            ukey, i = unicode(key), self.seq()
+            super(SimpleKeyMapper, self).__setitem__(ukey, i)
+            self._update_inverse(ukey, i)
+        return i
 
 
     def todict(self):
@@ -85,17 +55,16 @@ class SimpleKeyMapper(dict):
         return dict((v, k) for k, v in self.items())
 
 
-    def _inverse_index(self, i):
-        if not isinstance(i, int):
-            raise TypeError('argument must be an integer')
-        return i - self._offset
-
-
-    def _update_inverse(self, ukey):
+    def _update_inverse(self, ukey, i):
         inverse = self._inverse
-        inverse.append(ukey)
-        self._len = len(inverse)
-        
+        if hasattr(inverse, 'extend'):
+            s = 1 + i - len(inverse)
+            assert s > 0
+            inverse.extend(self.__fill * s)
+        else:
+            assert hasattr(inverse, 'items') and i not in inverse
+        inverse[i] = ukey
+
 
     del __max_ids
 
@@ -147,3 +116,7 @@ class KeyMapper(object):
 
     def id2keymap(self, _seqtype=tuple):
         return _seqtype(m.id2keymap() for m in self.mappers)
+
+
+    def getkey(self, ids):
+        return tuple([mpr[i] for mpr, i in zip(self.mappers, ids)])

@@ -1,13 +1,18 @@
 import numpy as np
-import dimension as di
-import align as al
 
-from pdb import set_trace as ST
+import dimension as di
+import collections as co
+import align as al
+import h5helper as h5h
+
+from pdb import set_trace as STOP
+
 
 class HyperBrickDimensions(tuple):
     def __init__(self, dims):
-        self.__dict__ = dict((d.name, d) for d in dims)
-        self.__indexlookup = dict((d.name, i) for i, d in enumerate(dims))
+        self.__dict__ = dict((di._normalize(d.name), d) for d in dims)
+        self.__indexlookup = dict((di._normalize(d.name), i)
+                                  for i, d in enumerate(dims))
 
     def __call__(self, key):
         return self.__dict__[key]
@@ -23,7 +28,7 @@ class HyperBrickDimensions(tuple):
             if not isinstance(key, di.Dimension):
                 raise TypeError, 'single argument must be a Dimension object'
             value = key
-            key = value.name
+            key = di._normalize(value.name)
         else:
             if hasattr(value, 'name') and value.name != key:
                 raise TypeError, 'inconsistent arguments'
@@ -40,7 +45,7 @@ class HyperBrickDimensions(tuple):
 
     @property
     def _names(self):
-        return tuple(d.name for d in self)
+        return di._normalize(tuple(d.name for d in self))
 
     def __contains__(self, key):
         return key in self.__dict__
@@ -150,7 +155,7 @@ class HyperBrick(object):
 
         idx = [slice(None)] * ndim
         for i, pa in enumerate(argslist):
-            idx[i] = dims[i].index(pa)
+            idx[i] = dims[i]._extended_index(pa)
 
         return tuple(idx)
 
@@ -163,6 +168,9 @@ class HyperBrick(object):
 
         dimvals = self._dims[:nargs]
         dimnames = tuple(d.name for d in self._dims[:nargs])
+
+        # the last ndim - nargs elements of slices are of the form
+        # slice(None, None, None), which specifies "all elements";
         slices = map(self._toslice, idx, dimvals, dimnames) + \
                  [slice(None) for _ in range(ndim - nargs)]
         return zip(dimnames, tuple(dv.__getitem__(sl) for
@@ -262,3 +270,52 @@ class HyperBrick(object):
                      for b, d0, d1 in zip((self, other),
                                           (di10, di00),
                                           (di11, di01)))
+
+    def __eq__(self, other):
+        return isinstance(other, type(self)) and \
+               self.labels == other.labels and \
+               (self.data == other.data).all()
+
+
+class EncodedHyperBrick(HyperBrick):
+    def __init__(self, data, labels, keymap):
+        super(EncodedHyperBrick, self).__init__(data, labels)
+
+        dims = self._dims
+        dimnames = dims._names
+        factors = dimnames[:-1]
+        components = tuple(dims[-1])
+
+        self._keycoords = co.namedtuple('keycoords', factors)
+        self._valcoords = cls = co.namedtuple('valcoords', components)
+
+        self.keymap = km = cls(*[p[1] for p in keymap])
+        self.inverse_keymap = cls(*h5h.invert_keymap(km))
+
+
+    def tocode(self, component, value):
+        subdict = getattr(self.inverse_keymap, component)
+        return tuple([v for k, v in subdict.items() if value(k, v)]) \
+               if callable(value) else subdict[value]
+
+    def __check_arity(self, arg, arity):
+        if not (hasattr(arg, '__iter__') and arity == len(arg)):
+            raise TypeError, 'argument must be a sequence ' \
+                             'object of length %d' % arity
+        
+    def tovalcoords(self, valcodes):
+        coords = self._valcoords
+        self.__check_arity(valcodes, len(coords._fields))
+        keymap = self.keymap
+        return coords(*[keymap[i][v] for i, v in enumerate(valcodes)])
+
+    def tokeycoords(self, indices):
+        coords = self._keycoords
+        lc = len(coords._fields)
+        self.__check_arity(indices, lc)
+        kss = [pair[1] for pair in (self._tolabels(indices)[:lc])]
+        if any(len(ks) != 1 for ks in kss): raise ValueError, 'invalid indices'
+        return coords(*[ks[0] for ks in kss])
+
+    def component_index(self, component):
+        return self._valcoords._fields.index(component)

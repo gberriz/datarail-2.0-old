@@ -6,9 +6,10 @@ from collections import namedtuple
 from itertools import imap, product
 import codecs
 import csv
+import copy as cp
 
 from find import find
-
+from collections import OrderedDict as od
 OrderedSet = list
 # TODO: implement OrderedSet.index
 # TODO: get rid of the optional argument kluge in is_valid_rc, etc.
@@ -37,6 +38,28 @@ WELL_NAMES = OrderedSet([''.join(p) for p in product(ROW_NAMES, COL_NAMES)])
 FIELD_NAMES = OrderedSet('1234')
 COMPONENTS = [CELL_LINE_ASSAY_NAMES, PLATE_NAMES, WELL_NAMES,
               FIELD_NAMES]
+
+ROSTER = od(((u'GF', od(((u'ligand_name', OrderedSet(u'VEGFF NGF EGF INS EPR '
+                                                     u'IGF-1 BTC IGF-2 HRG SCF '
+                                                     u'CTRL HGF FGF1 PDGFBB FGF2 '
+                                                     u'EFNA1'.split())),
+                         (u'ligand_concentration', OrderedSet((u'1', u'100'))),
+                         (u'time', OrderedSet(u'10 30 90'.split())),
+                         (u'signal', OrderedSet(u'pAkt-m-488 pErk-r-647 pErk-m-488 '
+                                                u'pAkt-r-647 pJNK-m-488 pP38-r-647 '
+                                                u'pP38-m-488 pJNK-r-647'.split()))))),
+             (u'CK', od(((u'ligand_name', OrderedSet(u'LPS IL-1α IL-6 CTRL IFN-α '
+                                                     u'IFN-γ TNF-α IL-2'.split())),
+                         (u'ligand_concentration', OrderedSet((u'1', u'100'))),
+                         (u'time', OrderedSet(u'10 30 90'.split())),
+                         (u'signal', OrderedSet(u'NF-κB-m-488 STAT1-r-647 pErk-m-488 '
+                                                u'STAT3-r-647 STAT1-r-488 NF-κB-m-647 '
+                                                u'STAT3-r-488 pErk-m-647'.split()))))))
+            )
+
+assert ROSTER[u'GF'][u'ligand_concentration'] == \
+       ROSTER[u'CK'][u'ligand_concentration']
+assert ROSTER[u'GF'][u'time'] == ROSTER[u'CK'][u'time']
 
 def is_valid_rc(rc, WELL_NAMES=set(WELL_NAMES)):
     return rc in WELL_NAMES
