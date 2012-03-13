@@ -1,20 +1,12 @@
 # -*- coding: utf-8 -*-
 import os.path as op
-from collections import namedtuple
+import collections as co
 from glob import glob
 import numpy as np
-import cPickle as pickle
-from fcntl import flock, LOCK_EX, LOCK_NB
-import warnings
 
-# from nodup import NoDup
-import orderedset as os
-from memoized import memoized
-from sdc_extract import _extract_wells_data
-from multikeydict import MultiKeyDict as mkd
-import icbp45_utils
+import memoized as me
+import sdc_extract as sdcx
 import h5helper as h5h
-import superkey as sk
 
 from pdb import set_trace as STOP
 
@@ -25,20 +17,15 @@ del __param
 __d = PARAM.__dict__
 __d.update(
     {
-      'encoding': 'utf-8',
-
       'sep': (',\t,', ',', '|', '^'),
-
       'path_to_linkfarm': '/home/gfb2/IR/scans/linkfarm',
       'sdc_subdir_pat': '?.sdc',
       'hdf5_ext': '.h5',
       'sdc_basename': 'Data',
       'path_comp_attribs': 'assay plate well'.split(),
       'wanted_feature_types': 'Whole Nucleus Cyto'.split(),
-      'data_coords': namedtuple('DataCoords', 'mean stddev'),
-      'antibody_class': namedtuple('Antibody', 'target species wavelength'),
+      'antibody_class': co.namedtuple('Antibody', 'target species wavelength'),
       'require_nucleus_mean_to_cyto_mean_ratio': set((u'NF-κB',)),
-      'extra_dim': {'stat': ('mean', 'stddev')},
     })
 
 __d['wanted_templates'] = map(lambda s: '%s_w%%s (Mean)' % s,
@@ -76,19 +63,6 @@ def _updateparams(d):
     except NameError:
         _setparams(d)
 
-def convert(s):
-    try:
-        return float(s) if '.' in s else int(s)
-    except ValueError:
-        return s.decode(PARAM.encoding)
-
-def parse_segment(segment, _sep=PARAM.sep[1]):
-    return tuple(convert(x) for x in segment.split(_sep))
-
-
-def parse_line(line, _sep=PARAM.sep[0]):
-    return tuple(parse_segment(s) for s in line.strip().split(_sep))
-
 def parse_antibody_spec(antibody_spec,
                         _cls=PARAM.antibody_class, _sep=PARAM.sep[2]):
     return _cls(*antibody_spec.split(_sep))
@@ -114,7 +88,7 @@ def get_wanted_features(channel):
     return [t % c for t in PARAM.wanted_templates]
 
 def get_rawdata(sdc_paths, wanted_features):
-    d = _extract_wells_data(sdc_paths, wanted_features)
+    d = sdcx._extract_wells_data(sdc_paths, wanted_features)
     return np.vstack([v for k, v in sorted(d.items())])
 
 def maybe_reshape(d):
@@ -125,7 +99,7 @@ def mean_and_stddev(d):
     return np.hstack(zip(dd.mean(0, np.float64),
                          dd.std(0, np.float64)))
 
-@memoized
+@me.memoized
 def get_extractor(target):
     if target in PARAM.require_nucleus_mean_to_cyto_mean_ratio:
         def _cull_zeros(d, i):
@@ -148,15 +122,6 @@ def get_extractor(target):
 def get_signal(rawdata, target):
     return get_extractor(target)(rawdata)
 
-def get_subassay(subrecord):
-    return icbp45_utils.get_subassay(subrecord.plate)
-
-def _skip(key, val, *extra):
-    # key is not needed in this case, but kept here as a reminder of
-    # the function's general form
-    subassay, assay = extra
-    return not (val.assay == assay and get_subassay(val) == subassay)
-
 def _h5group(fh, path, *components):
     return fh[op.join(*((path,) + components))]
 
@@ -164,11 +129,6 @@ def partial_enumerate(nda, k):
     import itertools as it
     for ii in it.product(*[range(d) for d in nda.shape[:k]]):
         yield ii, nda[ii]
-
-def main(argv):
-    _parseargs(argv)
-    return run()
-
 
 def project(data, index):
     def _project(slab, i=index):
@@ -233,6 +193,11 @@ def run():
         assert not np.isnan(dset[slab_index].ravel()).any()
 
     return 0
+
+
+def main(argv):
+    _parseargs(argv)
+    return run()
 
 
 if __name__ == '__main__':
