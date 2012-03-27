@@ -1,12 +1,18 @@
 #!/usr/bin/zsh
 
+. $ZDOTDIR/.zaliases 2>/dev/null
+# LOGDIR=$HOME/local/var/log/$( basename ${0} '.sh' )
+LOGDIR=$HOME/local/var/log/$( realpath ${0} | tr '/' '!' )
+# PREFIX=echo
+# LOG="/proc/$$/fd/1"
+PREFIX=; set -e; LOG=$LOGDIR/$( printf %05d $$ )_$( ts )_$( hostname ); set +e
+echo $LOG
+
 QUEUE=sorger_15m
 
 PATH_TO_H5=$1
 GRP=${2:-"/$USER/reg/$$"}
-# PREFIX=echo; LOG="/proc/$$/fd/1"
-PREFIX=; LOG="${0}_$$.log"; : >$LOG
-echo $LOG
+
 {
   JN0="$GRP/collect"
   $PREFIX bsub -g $GRP -J $JN0 -q $QUEUE \
