@@ -1,0 +1,30 @@
+######## header legend
+cell_mutation	unicode	metadata	Mutation/overextression in the cells
+drug	unicode	metadata	Name of drug used
+dose	float	metadata	Dose of the drug
+perturbation	unicode	metadata	Type of perturbation
+cell_number	int	metadata	Tracking number for each cell (for each conditions individually)
+time	int	metadata	Time point
+intensity	float	data	Signal intensity, ratio YFP/FRET
+flip_intensity	float	data	Signal intensity for FLIP (mCherry)
+******	data	*****	*****
+none	trail	0.00	none	5	5.0	1.367	1702.331
+none	trail	0.00	none	5	10.0	1.341	1702.331
+none	trail	0.00	none	5	15.0	1.362	1702.331
+none	trail	0.00	none	5	20.0	1.345	1702.331
+none	trail	0.00	none	5	25.0	1.342	1702.331
+none	trail	0.00	none	5	30.0	1.341	1702.331
+none	trail	0.00	none	5	35.0	1.356	1702.331
+none	trail	0.00	none	5	40.0	1.352	1702.331
+none	trail	0.00	none	5	45.0	1.338	1702.331
+none	trail	0.00	none	5	50.0	1.356	1702.331
+none	trail	0.00	none	5	55.0	1.346	1702.331
+none	trail	0.00	none	5	60.0	1.359	1702.331
+none	trail	0.00	none	5	65.0	1.338	1702.331
+none	trail	0.00	none	5	70.0	1.351	1702.331
+none	trail	0.00	none	5	75.0	1.335	1702.331
+none	trail	0.00	none	5	80.0	1.338	1702.331
+none	trail	0.00	none	5	85.0	1.331	1702.331
+none	trail	0.00	none	5	90.0	1.355	1702.331
+none	trail	0.00	none	5	95.0	1.352	1702.331
+none	trail	0.00	none	5	100.0	1.349	1702.331
