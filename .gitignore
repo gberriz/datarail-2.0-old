@@ -1,0 +1,10 @@
+*.pyc
+
+*.bak
+*.tmp
+*.old
+
+/*
+!.gitignore
+!src/
+!data/
