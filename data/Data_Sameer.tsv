@@ -1,8 +1,8 @@
 ######## header legend
 cell_line	unicode	metadata	Name of the cell line
 kinase	unicode	metadata	Name of the kinase measures, with phosphosite
-scan_int	float	metadata	Scanning intensity
-trans_time	float	metadata	TRansfer time for the western blot
+scan_intensity	float	metadata	Scanning intensity
+transfer_time	int	metadata	Transfer time for the western blot
 date	unicode	metadata	date of the experiment in format YYMMDD
 replicate	int	metadata
 intensity	float	data	Signal intensity measured with the scanner
