@@ -11,7 +11,7 @@ if True:
     # from pandas import DataFrame as df, Series as se
     from pandas import Series as se
     # import matplotlib.pyplot as plt
-    # import numpy as np
+    import numpy as np
     import math as ma
     import sys
 
@@ -88,13 +88,17 @@ if True:
 
 
 
+    def keep(df, labels, axis=0, level=None):
+        drop = list(set(df.columns).difference(set(labels)))
+        return df.drop(drop, axis=axis, level=level)
+
     class Replicates(pd.Series):
         def __new__(cls, data, keycolumns=None, base=1):
             reps = dict()
             ret = []
             idx = data.index
             if keycolumns is not None:
-                data = data.ix[:, keycolumns]
+                data = keep(data, keycolumns, axis=1)
             start = base - 1
             for t in [tuple(v) for v in data.values]:
                 r = reps[t] = reps.get(t, start) + 1
@@ -135,28 +139,78 @@ if True:
 
     welldatamapped = workbook.parse(u'WellDataMapped')
     platedata = workbook.parse(u'PlateData')
-    seeddata = workbook.parse(u'RefSeedSignal', header=1, skiprows=[0],
-                              skip_footer=7)
+    calibration = workbook.parse(u'RefSeedSignal', header=1, skiprows=[0],
+                                 skip_footer=7)
+    seeded = workbook.parse(u'SeededNumbers')
 
     # del workbook
     print 'done'
 
-    for df in (welldatamapped, platedata):
+    for df in (welldatamapped, platedata, seeded):
         df.rename(columns=_normalize_label, inplace=True)
 
+    def dropcols(df, colnames):
+        return df.drop(colnames.split()
+                       if hasattr(colnames, 'split')
+                       else colnames, axis=1)
 
-    seeddata.rename(columns={seeddata.columns[0]:
-                               _normalize_label(seeddata.columns[0])},
+    seeded = dropcols(seeded, 'read_date cell_id')
+    seeded.rename(columns={'cell_line':'cell_name'}, inplace=True)
+    hmssfx_re = re.compile(ur'_HMS$')
+    seeded.cell_name = seeded.cell_name.apply(lambda s: hmssfx_re.sub('', s))
+
+    import datetime as dt
+    def fix_barcode(b):
+        try:
+            return unicode(dt.datetime.strptime(b, u'%Y-%m-%d %I:%M:%S %p'))
+        except ValueError, e:
+            if 'does not match format' not in str(e):
+                raise
+            return b
+
+    # fix_barcode = dict([(b, b) for b in seeded.barcode])
+    # fix_barcode.update(((u'2012-10-24 5:46:33 PM', u'2012-10-24 17:46:33'),
+    #                     (u'2012-10-31 3:20:16 PM', u'2012-10-31 15:20:16')))
+    # seeded.barcode = [fix_barcode[b] for b in seeded.barcode]
+    seeded.barcode = seeded.barcode.apply(fix_barcode)
+
+    # def fix_barcode(b):
+    #     if b == u'2012-10-24 5:46:33 PM': return u'2012-10-24 17:46:33'
+    #     if b == u'2012-10-31 3:20:16 PM': return u'2012-10-31 15:20:16'
+    #     return b
+
+    calibration.rename(columns={calibration.columns[0]:
+                                    _normalize_label(calibration.columns[0])},
                     inplace=True)
     fixre=re.compile(ur'^MCFDCIS\.COM$')
-    seeddata.rename(columns=lambda l: fixre.sub(u'MCF10DCIS.COM', l),
-                    inplace=True)
+    calibration.rename(columns=lambda l: fixre.sub(u'MCF10DCIS.COM', l),
+                       inplace=True)
     del fixre
 
-    seeddata.set_index(seeddata.columns[0], inplace=True)
-    seeddata.columns.names[0] = 'cell_name'
-    seeddata = seeddata.stack().swaplevel(0, 1).sortlevel()
+    sd1 = calibration.set_index(calibration.columns[0])
 
+    calibration.set_index(calibration.columns[0], inplace=True)
+    calibration = pd.DataFrame(calibration.stack()
+                               .swaplevel(0, 1)
+                               .sortlevel(), columns=[u'signal'])
+    calibration.index.names[0] = u'cell_name'
+
+    def reg(df, index=pd.Index(('coeff', 'intercept'))):
+        xcol = 'seed_cell_number_ml'
+        ycol = 'signal'
+        sdf = df.sort(columns=[xcol], axis=0)
+        ls = pd.ols(x=sdf[xcol][2:], y=sdf[ycol][2:])
+        ret = ls.beta
+        ret.index = index
+        return ret
+
+    coeff = (calibration.reset_index().groupby('cell_name').apply(reg)
+             .reset_index())
+
+    seeded = pd.merge(seeded, coeff, on='cell_name', how='outer')
+
+    seeded['estimated_seeding_signal'] = np.round(seeded.intercept +
+        seeded.seeding_density_cells_ml * seeded.coeff)
 
     def dropna(df):
         return df.dropna(axis=1, thresh=len(df)//10).dropna(axis=0, how='all')
@@ -165,32 +219,40 @@ if True:
                                    u'compound_conc': u'compound_concentration'},
                           inplace=True)
 
-    platedata[u'time'] = platedata.protocol_name.apply(lambda s: s[-4])
-    platedata = platedata.ix[:, [u'barcode', u'time']]
+    platedata.time = platedata.protocol_name.apply(lambda s: s[-4])
+    platedata.barcode = platedata.barcode.apply(unicode)
+
+    platedata = keep(platedata, [u'barcode', u'time'], axis=1)
 
     # data0 = welldatamapped.dropna(axis=1, how='all')
     # data0 = data0.drop(u'none_5', axis=1)
     data0 = dropna(welldatamapped)
     data0 = data0[data0[u'sample_code'] != 'BDR']
-    data0 = data0[data0.columns.drop(u'cell_id well_id modified '
-                                     u'created'.split())]
+
+    data0 = dropcols(data0, u'cell_id well_id modified created')
+
     for c in 'compound_number sample_code column'.split():
-        data0[c] = map(maybe_to_int, data0[c])
+        data0[c] = data0[c].apply(maybe_to_int)
+
+    for c in data0.columns.drop(['signal']):
+        data0[c] = data0[c].apply(unicode)
 
     data = pd.merge(data0, platedata, on='barcode')
 
-    # data.compound_number = map(lambda x: unicode(int(x)), data.compound_number)
-    # data.compound_concentration = map(FloatLabel, data.compound_concentration)
+    # data.compound_number = data.compound_number.apply(lambda x: unicode(int(x)))
+    # data.compound_concentration = data.compound_concentration.apply(FloatLabel)
 
-    def neglog10(f):
-        return (u'inf' if f == 0.0 else
-                unicode(-round(ma.log10(f), 1)))
-    data.compound_concentration = map(neglog10,
-                                      data.compound_concentration)
-    del neglog10
+    def log10(s):
+        f = float(s)
+        return (u'-inf' if f == 0.0 else
+                unicode(round(ma.log10(f), 1)))
+
+    data.compound_concentration = data.compound_concentration.apply(log10)
+
+    del log10
 
     data.rename(columns={u'compound_concentration':
-                            u'neg_log10_compound_concentration'},
+                            u'log10_compound_concentration'},
                 inplace=True)
                                       
     barcodes = set(data.barcode)
@@ -200,14 +262,21 @@ if True:
     compound_0.reset_index(inplace=True, drop=True)
     assert len(compound_0) > 0
     assert set(compound_0.barcode) == barcodes
-    assert (compound_0.neg_log10_compound_concentration == 'inf').all()
+    assert (compound_0.log10_compound_concentration == '-inf').all()
 
     data = data[data.compound_number != '0']
     data.reset_index(inplace=True, drop=True)
     assert len(data) > 0
     assert len(data[data.sample_code == 'CRL']) == 0
     assert len(data[data.sample_code == 'BL']) == 0
-    assert (data.neg_log10_compound_concentration != 'inf').all()
+    assert (data.log10_compound_concentration != '-inf').all()
+
+
+    data = pd.merge(data,
+                    keep(seeded, [u'barcode', u'estimated_seeding_signal'],
+                         axis=1),
+                    on=u'barcode', how='left')
+
 
     controls = compound_0[compound_0.sample_code == 'CRL']
     controls.reset_index(inplace=True, drop=True)
@@ -219,7 +288,6 @@ if True:
     assert len(controls) + len(background) == len(compound_0)
 
     del compound_0
-
 
     def subtract_background(df,
                             bg=(background.groupby(u'barcode')[u'signal']
@@ -240,7 +308,6 @@ if True:
     comparison1 = (controls.groupby([u'barcode',
                            lambda c: (u'2' if controls.ix[c][u'column'] == '2'
                                       else '12,13')]).mean().unstack().reset_index())
-
 
     # comparison1 = (
     #     controls.groupby([u'barcode',
