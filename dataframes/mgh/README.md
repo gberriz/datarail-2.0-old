@@ -14,6 +14,11 @@
   MCF10DCIS.COM  
   MCFDCIS.COM
 
+* The following cell lines are missing from RefSeedSignal:
+
+  HCC-1500
+  ZR-75-30
+
 * The concentrations should be given as the string representation of
   their log10 ('1.0', '0.5', '0.0', '-0.5', ... or '-Inf'); most of
   the digits in the full precision are meaningless here, and using
@@ -21,6 +26,13 @@
   float-rounding- and formatting-related bugs.
 
 ** Can MATLAB understand `-Inf`?
+
+* Most of the cell line names used in the SeededNumbers sheet have an
+  extra '_HMS' suffix, not present in the corresponding cell line
+  names in other sheets (e.g. WellDataMapped, RefSeedSignal).
+
+* SeededNumbers uses 'CellLine' whereas other sheets
+  (e.g. WellDataMapped) use 'Cell Name'.
 
 ---
 
