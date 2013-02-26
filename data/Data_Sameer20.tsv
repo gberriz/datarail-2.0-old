@@ -1,0 +1,29 @@
+######## header legend
+cell_line	unicode	metadata	Name of the cell line
+kinase	unicode	metadata	Name of the kinase measures, with phosphosite
+scan_int	float	metadata	Scanning intensity
+trans_time	float	metadata	TRansfer time for the western blot
+date	unicode	metadata	date of the experiment in format YYMMDD
+replicate	int	metadata
+intensity	float	data	Signal intensity measured with the scanner
+******	data	*****	*****
+hcc1806	Akt pS437	2.50	45.00000	121109	1	0.10503
+hcc1806	Akt pS437	5.00	45.00000	121109	1	0.61300
+hcc1806	Akt pS437	7.50	45.00000	121109	1	3.26933
+hcc1806	Akt pS437	10.00	45.00000	121109	1	18.11754
+cama1	Akt pS437	2.50	45.00000	121109	1	1.52230
+cama1	Akt pS437	5.00	45.00000	121109	1	8.58472
+cama1	Akt pS437	7.50	45.00000	121109	1	47.53353
+cama1	Akt pS437	10.00	45.00000	121109	1	264.30284
+au565	Akt pS437	2.50	45.00000	121109	1	1.10472
+au565	Akt pS437	5.00	45.00000	121109	1	6.26559
+au565	Akt pS437	7.50	45.00000	121109	1	34.15455
+au565	Akt pS437	10.00	45.00000	121109	1	189.85221
+bt20	Akt pS437	2.50	45.00000	121109	1	1.90070
+bt20	Akt pS437	5.00	45.00000	121109	1	10.77508
+bt20	Akt pS437	7.50	45.00000	121109	1	59.56412
+bt20	Akt pS437	10.00	45.00000	121109	1	600.00000
+hcc38	Akt pS437	2.50	45.00000	121109	1	0.63046
+hcc38	Akt pS437	5.00	45.00000	121109	1	3.50781
+hcc38	Akt pS437	7.50	45.00000	121109	1	19.64846
+hcc38	Akt pS437	10.00	45.00000	121109	1	107.84137
